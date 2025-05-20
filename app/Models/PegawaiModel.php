@@ -19,4 +19,10 @@ class PegawaiModel extends Model
     return $this->belongsTo(DivisiModel::class, 'divisi_id');
     
     }
+
+    public function attendances()
+{
+    return $this->hasMany(AttendanceModel::class);
+}
+
 }

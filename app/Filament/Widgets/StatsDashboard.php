@@ -10,7 +10,6 @@ use App\Models\PegawaiModel;
 class StatsDashboard extends BaseWidget
 {
     protected function getStats(): array
-
     
     
     {
