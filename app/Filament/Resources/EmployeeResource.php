@@ -7,6 +7,7 @@ use App\Filament\Resources\EmployeeResource\Pages;
 use App\Models\Employee;
 use App\Models\User;
 use Filament\Forms\Components\Section;
+use Filament\Forms\Components\Textarea;
 use Filament\Forms\Form;
 use Filament\Resources\Resource;
 use Filament\Tables;
@@ -36,11 +37,11 @@ class EmployeeResource extends Resource
                         TextInput::make('email')
                             ->email()
                             ->required()
-                            ->unique(table: User::class, ignorable: fn (?Model $record) => $record?->user)
+                            ->unique(table: User::class, ignorable: fn(?Model $record) => $record?->user)
                             ->autocomplete(),
                         TextInput::make('password')
                             ->password()
-                            ->required(fn (?Model $record): bool => $record === null)
+                            ->required(fn(?Model $record): bool => $record === null)
                             ->dehydrated(fn($state) => filled($state))
                             ->dehydrateStateUsing(fn($state) => Hash::make($state))
                             ->label('Password')
@@ -48,13 +49,18 @@ class EmployeeResource extends Resource
                             ->confirmed(),
                         TextInput::make('password_confirmation')
                             ->password()
-                            ->required(fn (?Model $record): bool => $record === null)
+                            ->required(fn(?Model $record): bool => $record === null)
                             ->dehydrated(false)
                             ->label('Konfirmasi Password')
                             ->autocomplete('new-password'),
                     ]),
                 Section::make('Info Pegawai')
                     ->schema([
+                        TextInput::make('nip')
+                            ->label('NIP')
+                            ->placeholder('1234567890')
+                            ->maxLength(20)
+                            ->required(),
                         TextInput::make('name')
                             ->label('Nama Pegawai')
                             ->placeholder('Nama Lengkap')
@@ -73,13 +79,11 @@ class EmployeeResource extends Resource
                             ->label('Nomor HP')
                             ->placeholder('08123456789')
                             ->required(),
-                        TextInput::make('address')
+                        Textarea::make('address')
+                            ->rows(3)
                             ->label('Alamat Lengkap')
                             ->placeholder('Jl. Sukajadi No. 123, Jakarta')
                             ->maxLength(255)
-                            ->required(),
-                        Select::make('division_id')
-                            ->relationship('division', 'name')
                             ->required(),
                     ])
             ]);

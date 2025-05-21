@@ -18,7 +18,7 @@ class LeaveResource extends Resource
     protected static ?string $model = Leave::class;
 
     protected static ?string $navigationIcon = 'heroicon-o-clock';
-    protected static ?string $navigationGroup = 'HR Management';
+    protected static ?string $navigationGroup = 'Presensi';
     public static ?string $label = 'Cuti/Sakit';
 
 
