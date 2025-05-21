@@ -21,7 +21,7 @@ class DivisionResource extends Resource
 
     protected static ?string $slug = 'division';
 
-    public static ?string $label = 'divisi';
+    public static ?string $label = 'Divisi';
 
     public static function form(Form $form): Form
     {

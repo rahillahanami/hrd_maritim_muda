@@ -17,15 +17,18 @@ use Filament\Tables\Columns\BadgeColumn;
 class AttendanceResource extends Resource
 {
     protected static ?string $model = Attendance::class;
-
-    protected static ?string $navigationIcon = 'heroicon-o-rectangle-stack';
+    protected static ?string $navigationIcon = 'heroicon-o-clipboard-document-check';
+    protected static ?string $navigationGroup = 'HR Management';
+    protected static ?string $navigationLabel = 'Absensi';
+    protected static ?string $label = 'Absensi';
+    protected static ?string $slug = 'Absensi';
 
     public static function form(Form $form): Form
     {
         return $form
             ->schema([
-                Select::make('pegawai_id')
-                    ->relationship('pegawai', 'nama')
+                Select::make('employee_id')
+                    ->relationship('employee', 'name')
                     ->required(),
                 DatePicker::make('date')->required(),
                 TimePicker::make('check_in')
@@ -41,9 +44,9 @@ class AttendanceResource extends Resource
                         'present' => 'Present',
                         'absent' => 'Absent',
                         'late' => 'Late',
-                ])
-                ->default('present')
-                ->required(),
+                    ])
+                    ->default('present')
+                    ->required(),
             ]);
     }
 
@@ -51,16 +54,16 @@ class AttendanceResource extends Resource
     {
         return $table
             ->columns([
-            TextColumn::make('pegawai.nama')->label('Pegawai'),
-            TextColumn::make('date')->date(),
-            TextColumn::make('check_in')->time(),
-            TextColumn::make('check_out')->time(),
-            BadgeColumn::make('status')->colors([
-                'success' => 'present',
-                'danger' => 'absent',
-                'warning' => 'late',
-            ]),
-        ])
+                TextColumn::make('pegawai.nama')->label('Pegawai'),
+                TextColumn::make('date')->date(),
+                TextColumn::make('check_in')->time(),
+                TextColumn::make('check_out')->time(),
+                BadgeColumn::make('status')->colors([
+                    'success' => 'present',
+                    'danger' => 'absent',
+                    'warning' => 'late',
+                ]),
+            ])
             ->filters([
                 //
             ])

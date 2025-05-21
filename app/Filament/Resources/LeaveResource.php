@@ -17,8 +17,9 @@ class LeaveResource extends Resource
 {
     protected static ?string $model = Leave::class;
 
-    protected static ?string $navigationIcon = 'heroicon-o-rectangle-stack';
+    protected static ?string $navigationIcon = 'heroicon-o-clock';
     protected static ?string $navigationGroup = 'HR Management';
+    public static ?string $label = 'Cuti/Sakit';
 
 
     public static function form(Form $form): Form
@@ -35,7 +36,7 @@ class LeaveResource extends Resource
                         LeaveType::ANNUAL->value => 'Annual',
                         LeaveType::SICK->value => 'Sick',
                         LeaveType::PERSONAL->value => 'Personal',
-                        LeaveType::OTHER => 'Other',
+                        LeaveType::OTHER->value => 'Other',
                     ])
                     ->required(),
 

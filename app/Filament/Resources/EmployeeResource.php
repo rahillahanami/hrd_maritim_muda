@@ -25,7 +25,7 @@ class EmployeeResource extends Resource
     protected static ?string $navigationIcon = 'heroicon-o-users';
     protected static ?string $navigationLabel = 'Pegawai';
     protected static ?string $slug = 'employee';
-    public static ?string $label = 'pegawai';
+    public static ?string $label = 'Pegawai';
 
     public static function form(Form $form): Form
     {
@@ -44,6 +44,13 @@ class EmployeeResource extends Resource
                             ->dehydrated(fn($state) => filled($state))
                             ->dehydrateStateUsing(fn($state) => Hash::make($state))
                             ->label('Password')
+                            ->autocomplete('new-password')
+                            ->confirmed(),
+                        TextInput::make('password_confirmation')
+                            ->password()
+                            ->required(fn (?Model $record): bool => $record === null)
+                            ->dehydrated(false)
+                            ->label('Konfirmasi Password')
                             ->autocomplete('new-password'),
                     ]),
                 Section::make('Info Pegawai')
