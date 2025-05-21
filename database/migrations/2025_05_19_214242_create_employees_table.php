@@ -1,11 +1,12 @@
 <?php
 
+use App\Enums\Gender;
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
+use function App\Helpers\enum_values;
 
-return new class extends Migration
-{
+return new class extends Migration {
     /**
      * Run the migrations.
      */
@@ -14,14 +15,13 @@ return new class extends Migration
         Schema::create('pegawai', function (Blueprint $table) {
             $table->id();
             $table->string('nama', 100);
-            $table->enum('kelamin', ['pria', 'wanita']);
-            $table->date('tanggal_lahir');
-            $table->string('nomor_hp', 20);
-            $table->text('alamat');
-            $table->foreignId('divisi_id')
-                  ->constrained('divisi', 'id')
-                  ->restrictOnDelete(); 
-           $table->timestamps();
+            $table->enum('gender', enum_values(Gender::class))
+                ->default(Gender::Male->value);
+            $table->date('birth_date');
+            $table->string('phone_number', 20)->nullable();
+            $table->text('address')->nullable();
+            $table->foreignId('division_id')->nullable()->constrained('divisions')->restrictOnDelete();
+            $table->timestamps();
         });
     }
 

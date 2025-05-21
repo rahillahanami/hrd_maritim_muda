@@ -4,18 +4,18 @@ namespace App\Filament\Widgets;
 
 use Filament\Widgets\StatsOverviewWidget as BaseWidget;
 use Filament\Widgets\StatsOverviewWidget\Stat;
-use App\Models\DivisiModel;
-use App\Models\PegawaiModel;
+use App\Models\Division;
+use App\Models\Employee;
 
 class StatsDashboard extends BaseWidget
 {
     protected function getStats(): array
-    
-    
+
+
     {
 
-        $countDivisi = DivisiModel::count();
-        $countPegawai = PegawaiModel::count();
+        $countDivisi = Division::count();
+        $countPegawai = Employee::count();
 
         return [
             Stat::make('Jumlah Divisi', $countDivisi . ' Divisi'),

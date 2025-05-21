@@ -3,39 +3,37 @@
 namespace App\Filament\Resources;
 
 use App\Filament\Resources\DivisiResource\Pages;
-use App\Filament\Resources\DivisiResource\RelationManagers;
-use App\Models\DivisiModel;
-use Filament\Forms;
+use App\Models\Division;
 use Filament\Forms\Form;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
-use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Database\Eloquent\SoftDeletingScope;
 use Filament\Forms\Components\TextInput;
 use Filament\Tables\Columns\TextColumn;
 
-class DivisiResource extends Resource
+class DivisionResource extends Resource
 {
-    protected static ?string $model = DivisiModel::class;
+    protected static ?string $model = Division::class;
 
     protected static ?string $navigationIcon = 'heroicon-o-clipboard-document-list';
 
     protected static ?string $navigationLabel = 'Divisi';
 
-    protected static ?string $slug = 'divisi';
+    protected static ?string $slug = 'division';
 
-    public static ?string $label = 'divisi';
+    public static ?string $label = 'division';
 
     public static function form(Form $form): Form
     {
         return $form
             ->schema([
-                TextInput::make('nama_divisi')
-                ->required(),
-                // ->placeholder('Masukan divisi...'),
-                TextInput::make('deskripsi')
-                ->required(),
+                TextInput::make('name')
+                    ->label('Nama Divisi')
+                    ->required(),
+                TextInput::make('description')
+                    ->label('Deskripsi')
+                    ->maxLength(255)
+                    ->required(),
             ]);
     }
 
@@ -43,12 +41,14 @@ class DivisiResource extends Resource
     {
         return $table
             ->columns([
-                TextColumn::make('nama_divisi')
-                ->searchable()
-                ->sortable(),
-                TextColumn::make('deskripsi')
-                ->searchable()
-                ->sortable(),
+                TextColumn::make('name')
+                    ->label('Nama Divisi')
+                    ->searchable()
+                    ->sortable(),
+                TextColumn::make('description')
+                    ->label('Deskripsi')
+                    ->searchable()
+                    ->sortable(),
             ])
             ->filters([
                 //
@@ -74,9 +74,9 @@ class DivisiResource extends Resource
     public static function getPages(): array
     {
         return [
-            'index' => Pages\ListDivisis::route('/'),
-            'create' => Pages\CreateDivisi::route('/create'),
-            'edit' => Pages\EditDivisi::route('/{record}/edit'),
+            'index' => Pages\ListDivisions::route('/'),
+            'create' => Pages\CreateDivision::route('/create'),
+            'edit' => Pages\EditDivision::route('/{record}/edit'),
         ];
     }
 }

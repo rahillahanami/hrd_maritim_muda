@@ -5,24 +5,20 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 
-class PegawaiModel extends Model
+class Employee extends Model
 {
     use HasFactory;
-    
-    protected $table = 'pegawai';
 
     protected $guarded = [];
 
-    public function divisi() 
+    public function division()
     {
-
-    return $this->belongsTo(DivisiModel::class, 'divisi_id');
-    
+        return $this->belongsTo(Division::class);
     }
 
     public function attendances()
-{
-    return $this->hasMany(AttendanceModel::class);
-}
+    {
+        return $this->hasMany(Attendance::class);
+    }
 
 }

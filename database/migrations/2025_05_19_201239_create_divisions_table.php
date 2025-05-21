@@ -11,10 +11,11 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('divisi', function (Blueprint $table) {
+        Schema::create('divisions', function (Blueprint $table) {
             $table->id();
-            $table->string('nama_divisi');
-            $table->string('deskripsi');
+            $table->string('name');
+            $table->foreignId("head_id")->constrained("employees")->nullable();
+            $table->string('description')->nullable();
             $table->timestamps();
         });
     }

@@ -2,24 +2,20 @@
 
 namespace App\Filament\Resources;
 
+use App\Enums\LeaveType;
+use App\Enums\Status;
 use App\Filament\Resources\LeaveRequestResource\Pages;
-use App\Filament\Resources\LeaveRequestResource\RelationManagers;
-use App\Models\LeaveRequestModel;
-use Filament\Forms;
+use App\Models\Leave;
 use Filament\Forms\Form;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
-use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Database\Eloquent\SoftDeletingScope;
-use App\Models\LeaveRequest;
-use Closure;
 use Filament\Forms\Components\{Select, Textarea, DatePicker};
 use Filament\Tables\Columns\{TextColumn, BadgeColumn};
 
-class LeaveRequestResource extends Resource
+class LeaveResource extends Resource
 {
-    protected static ?string $model = LeaveRequestModel::class;
+    protected static ?string $model = Leave::class;
 
     protected static ?string $navigationIcon = 'heroicon-o-rectangle-stack';
     protected static ?string $navigationGroup = 'HR Management';
@@ -29,17 +25,17 @@ class LeaveRequestResource extends Resource
     {
         return $form
             ->schema([
-               Select::make('pegawai_id')
-                ->relationship('pegawai', 'nama')
-                ->searchable()
-                ->required(),
+                Select::make('employee_id')
+                    ->relationship('employee', 'name')
+                    ->searchable()
+                    ->required(),
 
                 Select::make('leave_type')
                     ->options([
-                        'annual' => 'Annual',
-                        'sick' => 'Sick',
-                        'personal' => 'Personal',
-                        'other' => 'Other',
+                        LeaveType::ANNUAL->value => 'Annual',
+                        LeaveType::SICK->value => 'Sick',
+                        LeaveType::PERSONAL->value => 'Personal',
+                        LeaveType::OTHER => 'Other',
                     ])
                     ->required(),
 
@@ -50,51 +46,43 @@ class LeaveRequestResource extends Resource
 
                 Select::make('status')
                     ->options([
-                        'pending' => 'Pending',
-                        'approved' => 'Approved',
-                        'rejected' => 'Rejected',
+                        Status::PENDING->value => 'Pending',
+                        Status::APPROVED->value => 'Approved',
+                        Status::REJECTED->value => 'Rejected',
                     ])
-                    ->default('pending')
+                    ->default(Status::PENDING->value)
                     ->required()
                     ->native(false),
 
-                Select::make('approved_by')
-                    ->relationship('approver', 'name')
+                Select::make('handled_by')
+                    ->relationship('handler', 'name')
                     ->searchable()
-                    ->label('Approved By')
+                    ->label('Handled By')
                     ->hiddenOn('create'),
 
-                Textarea::make('rejection_reason')
-                    ->label('Rejection Reason')
-                    ->hidden(fn ($get) => $get('status') !== 'rejected')
-                    ->required(fn ($get) => $get('status') === 'rejected')
+                Textarea::make('reason')
+                    ->label('Handler Reason')
+                    ->hidden(fn($get) => $get('status') !== Status::REJECTED->value)
+                    ->required(fn($get) => $get('status') === Status::REJECTED->value)
                     ->columnSpan('full'),
-
-                // TextColumn::make('status')->badge()->color(fn (string $state) => match ($state) {
-                //     'approved' => 'success',
-                //     'rejected' => 'danger',
-                //     'pending' => 'warning',
-                // }),
-
-                    
             ]);
-           
+
     }
 
     public static function table(Table $table): Table
     {
         return $table
             ->columns([
-                     TextColumn::make('pegawai.nama')->label('Pegawai'),
-                     TextColumn::make('leave_type')->label('Type')->sortable(),
-                     TextColumn::make('start_date')->date(),
-                     TextColumn::make('end_date')->date(),
-                     BadgeColumn::make('status')
-                        ->colors([
-                            'primary' => 'pending',
-                            'success' => 'approved',
-                            'danger' => 'rejected',
-                        ]),
+                TextColumn::make('employees.name')->label('Pegawai'),
+                TextColumn::make('leave_type')->label('Type')->sortable(),
+                TextColumn::make('start_date')->date(),
+                TextColumn::make('end_date')->date(),
+                BadgeColumn::make('status')
+                    ->colors([
+                        'primary' => 'pending',
+                        'success' => 'approved',
+                        'danger' => 'rejected',
+                    ]),
             ])
             ->filters([
                 //
