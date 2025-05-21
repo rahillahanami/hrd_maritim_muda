@@ -8,10 +8,6 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 
 class Division extends Model
 {
-
     use HasFactory;
-
-    protected $table = 'divisi';
-
     protected $guarded = [];
 }

@@ -12,9 +12,10 @@ return new class extends Migration {
      */
     public function up(): void
     {
-        Schema::create('pegawai', function (Blueprint $table) {
+        Schema::create('employees', function (Blueprint $table) {
             $table->id();
-            $table->string('nama', 100);
+            $table->foreignId('user_id')->constrained()->cascadeOnDelete();
+            $table->string('name', 100);
             $table->enum('gender', enum_values(Gender::class))
                 ->default(Gender::Male->value);
             $table->date('birth_date');

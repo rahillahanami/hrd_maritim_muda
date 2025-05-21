@@ -4,7 +4,7 @@ namespace App\Filament\Resources;
 
 use App\Enums\LeaveType;
 use App\Enums\Status;
-use App\Filament\Resources\LeaveRequestResource\Pages;
+use App\Filament\Resources\LeaveResource\Pages;
 use App\Models\Leave;
 use Filament\Forms\Form;
 use Filament\Resources\Resource;
@@ -108,9 +108,9 @@ class LeaveResource extends Resource
     public static function getPages(): array
     {
         return [
-            'index' => Pages\ListLeaveRequests::route('/'),
-            'create' => Pages\CreateLeaveRequest::route('/create'),
-            'edit' => Pages\EditLeaveRequest::route('/{record}/edit'),
+            'index' => Pages\ListLeaves::route('/'),
+            'create' => Pages\CreateLeave::route('/create'),
+            'edit' => Pages\EditLeave::route('/{record}/edit'),
         ];
     }
 

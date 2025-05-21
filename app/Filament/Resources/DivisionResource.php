@@ -2,7 +2,7 @@
 
 namespace App\Filament\Resources;
 
-use App\Filament\Resources\DivisiResource\Pages;
+use App\Filament\Resources\DivisionResource\Pages;
 use App\Models\Division;
 use Filament\Forms\Form;
 use Filament\Resources\Resource;
@@ -21,7 +21,7 @@ class DivisionResource extends Resource
 
     protected static ?string $slug = 'division';
 
-    public static ?string $label = 'division';
+    public static ?string $label = 'divisi';
 
     public static function form(Form $form): Form
     {

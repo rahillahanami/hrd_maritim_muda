@@ -1,12 +1,12 @@
 <?php
 
-namespace App\Filament\Resources\LeaveRequestResource\Pages;
+namespace App\Filament\Resources\LeaveResource\Pages;
 
 use App\Filament\Resources\LeaveResource;
 use Filament\Actions;
 use Filament\Resources\Pages\ListRecords;
 
-class ListLeaveRequests extends ListRecords
+class ListLeaves extends ListRecords
 {
     protected static string $resource = LeaveResource::class;
 

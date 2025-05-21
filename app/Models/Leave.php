@@ -7,7 +7,6 @@ use Illuminate\Database\Eloquent\Model;
 
 class Leave extends Model
 {
-
     use HasFactory;
     protected $guarded = [];
     public function employee()
@@ -15,8 +14,8 @@ class Leave extends Model
         return $this->belongsTo(Employee::class);
     }
 
-    public function approver()
+    public function handled_by()
     {
-        return $this->belongsTo(User::class, 'approved_by');
+        return $this->belongsTo(User::class, 'handled_by');
     }
 }
