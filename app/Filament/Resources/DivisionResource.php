@@ -2,7 +2,7 @@
 
 namespace App\Filament\Resources;
 
-use App\Filament\Resources\DivisiResource\Pages;
+use App\Filament\Resources\DivisionResource\Pages;
 use App\Models\Division;
 use Filament\Forms\Form;
 use Filament\Resources\Resource;

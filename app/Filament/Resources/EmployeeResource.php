@@ -3,7 +3,7 @@
 namespace App\Filament\Resources;
 
 use App\Enums\Gender;
-use App\Filament\Resources\PegawaiResource\Pages;
+use App\Filament\Resources\EmployeeResource\Pages;
 use App\Models\Employee;
 use Filament\Forms\Form;
 use Filament\Resources\Resource;
