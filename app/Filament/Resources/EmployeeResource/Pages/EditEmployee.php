@@ -36,6 +36,7 @@ class EditEmployee extends EditRecord
 
     protected function handleRecordUpdate(Model $record, array $data): Model
     {
+
         // Update the User model
         if ($record->user) {
             $record->user->update([
@@ -49,6 +50,11 @@ class EditEmployee extends EditRecord
                     'password' => $data['password'],
                 ]);
             }
+
+            // Sync roles
+            if(isset($data['roles'])) {
+                $record->user->syncRoles($data['roles'] ?? []);
+            }
         }
 
         // Update the Employee model
@@ -58,7 +64,8 @@ class EditEmployee extends EditRecord
             'birth_date' => $data['birth_date'],
             'phone_number' => $data['phone_number'],
             'address' => $data['address'],
-            'division_id' => $data['division_id'],
+            'division_id' => $data['division_id'] ?? null,
+            'nip' => $data['nip'],
         ]);
 
         return $record;

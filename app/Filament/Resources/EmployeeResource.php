@@ -17,8 +17,8 @@ use Filament\Forms\Components\TextInput;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Forms\Components\DatePicker;
 use Illuminate\Support\Facades\Hash;
-use Filament\Forms\Components\Hidden;
 use Illuminate\Database\Eloquent\Model;
+use Spatie\Permission\Models\Role;
 
 class EmployeeResource extends Resource
 {
@@ -39,6 +39,21 @@ class EmployeeResource extends Resource
                             ->required()
                             ->unique(table: User::class, ignorable: fn(?Model $record) => $record?->user)
                             ->autocomplete(),
+                        Select::make('roles')
+                            ->options(fn() => Role::all()->mapWithKeys(function ($role) {
+                                return [$role->name => ucfirst($role->name)];
+                            }))
+                            ->multiple()
+                            ->preload()
+                            ->required()
+                            ->label('Role')
+                            ->afterStateHydrated(function ($component, $state, ?Model $record) {
+                                if ($record && $record->user) {
+                                    // Get roles as array of role names
+                                    $roleNames = $record->user->roles->pluck('name')->toArray();
+                                    $component->state($roleNames);
+                                }
+                            }),
                         TextInput::make('password')
                             ->password()
                             ->required(fn(?Model $record): bool => $record === null)
