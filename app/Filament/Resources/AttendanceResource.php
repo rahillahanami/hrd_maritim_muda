@@ -57,7 +57,7 @@ class AttendanceResource extends Resource
     {
         return $table
             ->columns([
-                TextColumn::make('pegawai.nama')->label('Pegawai'),
+                TextColumn::make('employee.name')->label('Pegawai'),
                 TextColumn::make('date')->date(),
                 TextColumn::make('check_in')->time(),
                 TextColumn::make('check_out')->time(),
