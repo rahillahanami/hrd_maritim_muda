@@ -4,7 +4,7 @@ namespace App\Filament\Resources;
 
 use App\Enums\LeaveType;
 use App\Enums\Status;
-use App\Filament\Resources\LeaveRequestResource\Pages;
+use App\Filament\Resources\LeaveResource\Pages;
 use App\Models\Leave;
 use Filament\Forms\Form;
 use Filament\Resources\Resource;
@@ -17,8 +17,9 @@ class LeaveResource extends Resource
 {
     protected static ?string $model = Leave::class;
 
-    protected static ?string $navigationIcon = 'heroicon-o-rectangle-stack';
-    protected static ?string $navigationGroup = 'HR Management';
+    protected static ?string $navigationIcon = 'heroicon-o-clock';
+    protected static ?string $navigationGroup = 'Presensi';
+    public static ?string $label = 'Cuti/Sakit';
 
 
     public static function form(Form $form): Form
@@ -35,7 +36,7 @@ class LeaveResource extends Resource
                         LeaveType::ANNUAL->value => 'Annual',
                         LeaveType::SICK->value => 'Sick',
                         LeaveType::PERSONAL->value => 'Personal',
-                        LeaveType::OTHER => 'Other',
+                        LeaveType::OTHER->value => 'Other',
                     ])
                     ->required(),
 
@@ -108,9 +109,9 @@ class LeaveResource extends Resource
     public static function getPages(): array
     {
         return [
-            'index' => Pages\ListLeaveRequests::route('/'),
-            'create' => Pages\CreateLeaveRequest::route('/create'),
-            'edit' => Pages\EditLeaveRequest::route('/{record}/edit'),
+            'index' => Pages\ListLeaves::route('/'),
+            'create' => Pages\CreateLeave::route('/create'),
+            'edit' => Pages\EditLeave::route('/{record}/edit'),
         ];
     }
 

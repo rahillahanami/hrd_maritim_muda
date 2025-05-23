@@ -4,46 +4,52 @@ namespace App\Filament\Resources;
 
 use App\Filament\Resources\AttendanceResource\Pages;
 use App\Models\Attendance;
+use Filament\Forms\Components\DateTimePicker;
+use Filament\Forms\Components\TextInput;
 use Filament\Forms\Form;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\DatePicker;
-use Filament\Forms\Components\TimePicker;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Columns\BadgeColumn;
 
 class AttendanceResource extends Resource
 {
     protected static ?string $model = Attendance::class;
-
-    protected static ?string $navigationIcon = 'heroicon-o-rectangle-stack';
+    protected static ?string $navigationIcon = 'heroicon-o-clipboard-document-check';
+    protected static ?string $navigationGroup = 'Presensi';
+    protected static ?string $navigationLabel = 'Absensi';
+    protected static ?string $label = 'Absensi';
+    protected static ?string $slug = 'Absensi';
 
     public static function form(Form $form): Form
     {
         return $form
             ->schema([
-                Select::make('pegawai_id')
-                    ->relationship('pegawai', 'nama')
+                Select::make('employee_id')
+                    ->relationship('employee', 'name')
                     ->required(),
                 DatePicker::make('date')->required(),
-                TimePicker::make('check_in')
+                DateTimePicker::make('check_in')
                     ->label('Check In')
                     ->seconds(false)
                     ->nullable(),
-                TimePicker::make('check_out')
+                DateTimePicker::make('check_out')
                     ->label('Check Out')
                     ->seconds(false)
                     ->nullable(),
-                Select::make('status')
-                    ->options([
-                        'present' => 'Present',
-                        'absent' => 'Absent',
-                        'late' => 'Late',
-                ])
-                ->default('present')
-                ->required(),
+                TextInput::make('early_minutes')
+                    ->label('Menit Pulang Awal')
+                    ->numeric()
+                    ->minValue(0)
+                    ->default(0),
+                TextInput::make('late_minutes')
+                    ->label('Menit Terlambat')
+                    ->numeric()
+                    ->minValue(0)
+                    ->default(0),
             ]);
     }
 
@@ -51,16 +57,16 @@ class AttendanceResource extends Resource
     {
         return $table
             ->columns([
-            TextColumn::make('pegawai.nama')->label('Pegawai'),
-            TextColumn::make('date')->date(),
-            TextColumn::make('check_in')->time(),
-            TextColumn::make('check_out')->time(),
-            BadgeColumn::make('status')->colors([
-                'success' => 'present',
-                'danger' => 'absent',
-                'warning' => 'late',
-            ]),
-        ])
+                TextColumn::make('employee.name')->label('Pegawai'),
+                TextColumn::make('date')->date(),
+                TextColumn::make('check_in')->time(),
+                TextColumn::make('check_out')->time(),
+                BadgeColumn::make('status')->colors([
+                    'success' => 'present',
+                    'danger' => 'absent',
+                    'warning' => 'late',
+                ]),
+            ])
             ->filters([
                 //
             ])

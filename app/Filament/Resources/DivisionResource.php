@@ -4,6 +4,7 @@ namespace App\Filament\Resources;
 
 use App\Filament\Resources\DivisionResource\Pages;
 use App\Models\Division;
+use Filament\Forms\Components\Select;
 use Filament\Forms\Form;
 use Filament\Resources\Resource;
 use Filament\Tables;
@@ -21,18 +22,23 @@ class DivisionResource extends Resource
 
     protected static ?string $slug = 'division';
 
-    public static ?string $label = 'division';
+    public static ?string $label = 'Divisi';
 
     public static function form(Form $form): Form
     {
         return $form
             ->schema([
                 TextInput::make('name')
-                    ->label('Nama Divisi')
+                    ->label('Nama')
                     ->required(),
                 TextInput::make('description')
                     ->label('Deskripsi')
                     ->maxLength(255)
+                    ->required(),
+                Select::make('head_id')
+                    ->relationship('head', 'name')
+                    ->label('Kepala Divisi')
+                    ->searchable()
                     ->required(),
             ]);
     }
@@ -49,6 +55,9 @@ class DivisionResource extends Resource
                     ->label('Deskripsi')
                     ->searchable()
                     ->sortable(),
+                TextColumn::make('head.name')
+                    ->label('Kepala Divisi')
+                    ->searchable(),
             ])
             ->filters([
                 //
