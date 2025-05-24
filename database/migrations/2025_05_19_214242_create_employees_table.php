@@ -22,7 +22,7 @@ return new class extends Migration {
             $table->date('birth_date');
             $table->string('phone_number', 20)->nullable();
             $table->text('address')->nullable();
-            $table->foreignId('division_id')->nullable()->constrained('divisions')->restrictOnDelete();
+            $table->foreignId('division_id')->nullable()->constrained('divisions', 'id')->restrictOnDelete();
             $table->timestamps();
         });
     }
