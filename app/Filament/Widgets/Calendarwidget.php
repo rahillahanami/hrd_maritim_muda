@@ -3,13 +3,17 @@
 namespace App\Filament\Widgets;
 
 use App\Filament\Resources\EventResource;
+use App\Models\Division;
+use Faker\Core\Color;
 use Filament\Widgets\Widget;
 use Saade\FilamentFullCalendar\Widgets\FullCalendarWidget;
 use App\Models\Event;
+use Filament\Forms\Components\Builder;
 // use Filament\Actions\DeleteAction;
 // use Filament\Actions\EditAction;
 use Filament\Forms\Components\DateTimePicker;
 use Filament\Forms\Components\Grid;
+use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Form;
 use Illuminate\Database\Eloquent\Model;
@@ -26,6 +30,9 @@ class Calendarwidget extends FullCalendarWidget
     public function fetchEvents(array $fetchInfo): array
     {
         return Event::query()
+         ->when($this->filterData['division_id'] ?? null, function (Builder $query, $divisionId) {
+                $query->where('division_id', $divisionId);
+            })
             ->where('starts_at', '>=', $fetchInfo['start'])
             ->where('ends_at', '<=', $fetchInfo['end'])
             ->get()
@@ -39,6 +46,7 @@ class Calendarwidget extends FullCalendarWidget
                         url: EventResource::getUrl(name: 'view', parameters: ['record' => $event]),
                         shouldOpenUrlInNewTab: true
                     )
+                    
             )
             ->toArray();
     }
@@ -46,6 +54,11 @@ class Calendarwidget extends FullCalendarWidget
     public function getFormSchema(): array
     {
         return [
+            Select::make('division_id')
+                ->label('Filter by Divisi')
+                ->placeholder('Semua Divisi')
+                ->options(Division::pluck('name', 'id')->toArray())
+                ->default(null), // Defaultnya tidak memfilter
             TextInput::make('name'),
             TextInput::make('description'),
             Grid::make()

@@ -15,6 +15,8 @@ return new class extends Migration
             $table->id();
             $table->string('name');
             $table->text('description')->nullable(); // Deskripsi acara
+            $table->string('created_by');
+            $table->foreignId('division_id')->nullable()->constrained('divisions');
             $table->dateTime('starts_at'); // Waktu mulai acara
             $table->dateTime('ends_at'); // Waktu selesai acara
             $table->timestamps();
