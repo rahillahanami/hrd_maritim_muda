@@ -4,6 +4,7 @@ namespace App\Filament\Resources;
 
 use App\Filament\Resources\AttendanceResource\Pages;
 use App\Models\Attendance;
+use Filament\Facades\Filament;
 use Filament\Forms\Components\DateTimePicker;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Form;
@@ -23,6 +24,21 @@ class AttendanceResource extends Resource
     protected static ?string $navigationLabel = 'Absensi';
     protected static ?string $label = 'Absensi';
     protected static ?string $slug = 'Absensi';
+
+    protected static function mutateFormDataBeforeCreate(array $data): array
+{
+    // Asumsi: Setiap User memiliki 1 Employee (one-to-one)
+    // atau Anda bisa mencari Employee berdasarkan user_id.
+    $loggedInUser = Filament::auth()->user();
+    if ($loggedInUser && $loggedInUser->employee) { // Asumsi ada relasi employee di model User
+        $data['employee_id'] = $loggedInUser->employee->id;
+    } else {
+        // Handle jika user tidak memiliki employee (misal: user admin tidak punya employee_id)
+        // Atau jika employee_id di attendance boleh null.
+        $data['employee_id'] = null; // atau throw error
+    }
+    return $data;
+}
 
     public static function form(Form $form): Form
     {
