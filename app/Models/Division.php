@@ -11,6 +11,12 @@ class Division extends Model
     use HasFactory;
     protected $guarded = [];
 
+        protected $fillable = [
+        'name',
+        'head_id', // Pastikan ini ada di $fillable
+        'description',
+    ];
+
     public function head()
     {
         return $this->belongsTo(Employee::class, 'head_id');
@@ -19,6 +25,11 @@ class Division extends Model
     public function employees()
     {
         return $this->hasMany(Employee::class);
+    }
+
+       public function workPlans()
+    {
+        return $this->hasMany(WorkPlan::class);
     }
     
 }

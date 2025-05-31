@@ -11,6 +11,19 @@ class Employee extends Model
 
     protected $guarded = [];
 
+    //  protected $fillable = [
+    //     'user_id', // Sudah ada
+    //     'name',
+    //     'nip',
+    //     'phone_number',
+    //     'position',
+    //     'department',
+    //     'date_joined',
+    //     'date_of_birth',
+    //     'gender',
+    //     'address',
+    // ];
+
     public function user()
     {
         return $this->belongsTo(User::class);
@@ -24,6 +37,12 @@ class Employee extends Model
     public function attendances()
     {
         return $this->hasMany(Attendance::class);
+    }
+
+        public function headedDivisions()
+    {
+        // Asumsi: 'head_id' di tabel divisions merujuk ke 'employees.id'
+        return $this->hasMany(Division::class, 'head_id');
     }
 
 }

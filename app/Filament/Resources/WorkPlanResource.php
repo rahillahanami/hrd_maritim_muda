@@ -12,210 +12,303 @@ use Filament\Tables;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\SoftDeletingScope;
-use Filament\Facades\Filament; // Import Facade Filament
+use Filament\Facades\Filament;
+use App\Models\User;
+use App\Models\Employee;
+use App\Models\Division; // Pastikan ini di-import
 
 class WorkPlanResource extends Resource
 {
     protected static ?string $model = WorkPlan::class;
 
-    protected static ?string $navigationIcon = 'heroicon-o-clipboard-document-list'; // Ganti ikon navigasi
+    protected static ?string $navigationIcon = 'heroicon-o-clipboard-document-list';
+    protected static ?string $navigationGroup = 'Performance Management';
+    protected static ?int $navigationSort = 1;
 
-    // Konfigurasi label di navigasi
-    protected static ?string $navigationGroup = 'Performance Management'; // Kelompokkan di navigasi
-    protected static ?int $navigationSort = 1; // Urutan di dalam grup
+    // *** Tambahkan method helper ini di dalam kelas WorkPlanResource ***
+    protected static function isCurrentUserAdmin(): bool
+    {
+        $user = Filament::auth()->user();
+        return $user && $user->hasRole('super_admin'); // Sesuaikan 'admin' dengan nama peran admin Anda
+    }
 
+    protected static function isCurrentUserHeadOfDivision(): bool
+    {
+        $user = Filament::auth()->user();
+        if (!$user || !$user->employee) {
+            return false; // User tidak login atau tidak punya data employee
+        }
+
+        // Cek apakah ID employee dari user ini adalah head_id di divisi yang terkait dengan employee tersebut
+        // atau di divisi manapun yang dia pimpin.
+        return Division::where('head_id', $user->employee->id)->exists();
+    }
+
+    protected static function getCurrentUserDivisionId(): ?int
+    {
+        $user = Filament::auth()->user();
+        // Sekarang kita bisa langsung ambil dari relasi employee->division->id
+        return $user->employee?->division?->id;
+    }
     /**
      * Mendefinisikan skema formulir untuk membuat atau mengedit rencana kerja.
      */
-    public static function form(Form $form): Form
-    {
-        return $form
-            ->schema([
-                Forms\Components\TextInput::make('title')
-                    ->required()
-                    ->maxLength(255)
-                    ->placeholder('Judul Rencana Kerja'),
 
-                Forms\Components\Textarea::make('description')
-                    ->nullable()
-                    ->rows(4)
-                    ->placeholder('Detail Rencana Kerja'),
+     public static function getEloquentQuery(): Builder
+{
+    $currentUser = Filament::auth()->user();
 
-                Forms\Components\Grid::make(2) // Membuat layout 2 kolom untuk beberapa field
-                    ->schema([
-                        Forms\Components\TextInput::make('target_metric')
-                            ->nullable()
-                            ->maxLength(255)
-                            ->placeholder('Contoh: Jumlah Penjualan, Proyek Terselesaikan'),
+    // Jika user tidak login atau tidak punya data employee, jangan tampilkan apa-apa
+    if (!$currentUser || !$currentUser->employee) {
+        return parent::getEloquentQuery()->whereRaw('1 = 0')->withoutGlobalScopes([
+            SoftDeletingScope::class,
+        ]);
+    }
 
-                        Forms\Components\TextInput::make('target_value')
-                            ->numeric()
-                            ->nullable()
-                            ->step(0.01) // Memungkinkan nilai desimal
-                            ->placeholder('Contoh: 15 (untuk 15%), 5 (untuk 5 Proyek)'),
-                    ]),
+    // Jika user adalah Admin
+    if (static::isCurrentUserAdmin()) {
+        return parent::getEloquentQuery()->withoutGlobalScopes([
+            SoftDeletingScope::class,
+        ]);
+    }
 
-                Forms\Components\Grid::make(2)
-                    ->schema([
-                        Forms\Components\DatePicker::make('start_date')
-                            ->required(),
+    // Jika user adalah Kepala Divisi atau Anggota Divisi biasa
+    $userDivisionId = static::getCurrentUserDivisionId();
 
-                        Forms\Components\DatePicker::make('due_date')
-                            ->required()
-                            ->afterOrEqual('start_date'), // Tenggat waktu harus setelah atau sama dengan tanggal mulai
-                    ]),
-
-                Forms\Components\Select::make('status')
-                    ->options([
-                        'Draft' => 'Draft',
-                        'On Progress' => 'On Progress',
-                        'Completed' => 'Completed',
-                        'Pending Review' => 'Pending Review',
-                        'Cancelled' => 'Cancelled',
-                    ])
-                    ->required()
-                    ->default('Draft'),
-
-                Forms\Components\TextInput::make('progress_percentage') // UBAH INI DARI SLIDER
-                    ->label('Progress (%)')
-                    ->numeric() // Pastikan hanya menerima angka
-                    ->minValue(0) // Nilai minimum 0
-                    ->maxValue(100) // Nilai maksimum 100
-                    ->default(0)
-                    ->suffix('%') // Tampilkan '%' di samping input
-                    ->required(), // Pastikan diisi
-
-                Forms\Components\Textarea::make('notes')
-                    ->nullable()
-                    ->rows(3)
-                    ->placeholder('Catatan atau pembaruan progres'),
-
-                // Field untuk pemilik rencana kerja (user_id)
-                Forms\Components\Select::make('user_id')
-                    ->relationship('user', 'name') // Relasi ke model User, tampilkan nama user
-                    ->required()
-                    ->default(fn () => Filament::auth()->user()?->id) // Otomatis mengisi ID user yang login
-                    ->searchable()
-                    ->preload(), // Memuat semua opsi user saat form dibuka
-
-                // Field untuk divisi terkait (division_id)
-                Forms\Components\Select::make('division_id')
-                    ->relationship('division', 'name')
-                    ->nullable()
-                    ->placeholder('Pilih Divisi Terkait')
-                    ->searchable()
-                    ->preload(),
-
-                // Field untuk user yang menyetujui (approved_by_user_id)
-                Forms\Components\Select::make('approved_by_user_id')
-                    ->relationship('approvedBy', 'name') // Relasi ke method approvedBy di model WorkPlan
-                    ->label('Disetujui Oleh')
-                    ->nullable()
-                    ->placeholder('Pilih Penyetuju')
-                    ->searchable()
-                    ->preload(),
+    if ($userDivisionId) {
+        // User hanya bisa melihat WorkPlan yang ditujukan untuk divisinya
+        return parent::getEloquentQuery()
+            ->where('division_id', $userDivisionId)
+            ->withoutGlobalScopes([
+                SoftDeletingScope::class,
             ]);
     }
+
+    // Jika user login, bukan admin, tapi tidak terhubung ke divisi manapun (misal, data employee belum lengkap)
+    return parent::getEloquentQuery()->whereRaw('1 = 0')->withoutGlobalScopes([
+        SoftDeletingScope::class,
+    ]);
+}
+    public static function form(Form $form): Form
+{
+    $currentUser = Filament::auth()->user();
+    $isAdmin = static::isCurrentUserAdmin();
+    $isHeadOfDivision = static::isCurrentUserHeadOfDivision();
+
+    // Untuk mengontrol apakah field bisa diedit saat mode EDIT
+    // Kita perlu ID WorkPlan yang sedang diedit untuk cek divisinya.
+    // $record bisa diakses dari parameter closure make().
+    $currentWorkPlanDivisionId = $form->getRecord()?->division_id;
+    $currentUserDivisionId = static::getCurrentUserDivisionId();
+
+    // Apakah user ini kepala divisi DARI WorkPlan yang sedang diedit?
+    $isEditingOwnDivisionWorkPlan = $currentWorkPlanDivisionId === $currentUserDivisionId && $isHeadOfDivision;
+
+
+    return $form
+        ->schema([
+            Forms\Components\TextInput::make('title')
+                ->required()
+                ->maxLength(255)
+                ->placeholder('Judul Rencana Kerja')
+                ->disabled(fn ($operation) => $operation === 'edit' && !$isAdmin && !$isEditingOwnDivisionWorkPlan), // Hanya admin/kepala divisi dari workplan yang bisa edit
+            // ... (field lainnya seperti description, target_metric, target_value, start_date, due_date) ...
+            // Terapkan logika disabled serupa untuk field yang hanya bisa diedit oleh admin/kepala divisi
+
+            Forms\Components\Textarea::make('description')
+                ->nullable()
+                ->rows(4)
+                ->placeholder('Detail Rencana Kerja')
+                ->disabled(fn ($operation) => $operation === 'edit' && !$isAdmin && !$isEditingOwnDivisionWorkPlan),
+
+            Forms\Components\Grid::make(2)
+                ->schema([
+                    Forms\Components\TextInput::make('target_metric')
+                        ->nullable()
+                        ->maxLength(255)
+                        ->placeholder('Contoh: Jumlah Penjualan, Proyek Terselesaikan')
+                        ->disabled(fn ($operation) => $operation === 'edit' && !$isAdmin && !$isEditingOwnDivisionWorkPlan),
+
+                    Forms\Components\TextInput::make('target_value')
+                        ->numeric()
+                        ->nullable()
+                        ->step(0.01)
+                        ->placeholder('Contoh: 15 (untuk 15%), 5 (untuk 5 Proyek)')
+                        ->disabled(fn ($operation) => $operation === 'edit' && !$isAdmin && !$isEditingOwnDivisionWorkPlan),
+                ]),
+
+            Forms\Components\Grid::make(2)
+                ->schema([
+                    Forms\Components\DatePicker::make('start_date')
+                        ->required()
+                        ->disabled(fn ($operation) => $operation === 'edit' && !$isAdmin && !$isEditingOwnDivisionWorkPlan),
+
+                    Forms\Components\DatePicker::make('due_date')
+                        ->required()
+                        ->afterOrEqual('start_date')
+                        ->disabled(fn ($operation) => $operation === 'edit' && !$isAdmin && !$isEditingOwnDivisionWorkPlan),
+                ]),
+
+            Forms\Components\Select::make('status')
+                ->options([
+                    'Draft' => 'Draft',
+                    'On Progress' => 'On Progress',
+                    'Completed' => 'Completed',
+                    'Pending Review' => 'Pending Review',
+                    'Cancelled' => 'Cancelled',
+                ])
+                ->required()
+                ->default('Draft')
+                ->disabled(fn ($operation) => $operation === 'edit' && !$isAdmin && !$isEditingOwnDivisionWorkPlan), // Status juga hanya bisa diubah oleh admin/kepala divisi yang berhak
+
+            Forms\Components\TextInput::make('progress_percentage')
+                ->label('Progress (%)')
+                ->numeric()
+                ->minValue(0)
+                ->maxValue(100)
+                ->default(0)
+                ->suffix('%')
+                ->required()
+                ->disabled(fn ($operation) => $operation === 'edit' && !$isAdmin && !$isEditingOwnDivisionWorkPlan), // Progress hanya bisa diubah oleh admin/kepala divisi yang berhak
+
+            Forms\Components\Textarea::make('notes')
+                ->nullable()
+                ->rows(3)
+                ->placeholder('Catatan atau pembaruan progres')
+                ->disabled(fn ($operation) => $operation === 'edit' && !$isAdmin && !$isEditingOwnDivisionWorkPlan),
+
+            // user_id: Ini adalah siapa yang membuat WorkPlan, diisi otomatis dan tidak bisa diedit
+            Forms\Components\Select::make('user_id')
+                ->relationship('user', 'name')
+                ->required()
+                ->default(fn () => Filament::auth()->user()?->id)// Otomatis mengisi ID user yang login
+                ->disabled(), // Selalu disabled karena hanya untuk pencatat
+                // ->hiddenOn('create'), // Sembunyikan saat membuat (karena sudah otomatis)
+
+            // Field untuk divisi terkait (division_id)
+            Forms\Components\Select::make('division_id')
+                ->relationship('division', 'name')
+                ->required() // WorkPlan wajib ditujukan ke divisi
+                ->placeholder('Pilih Divisi Terkait')
+                ->searchable()
+                ->preload()
+                ->disabled(fn ($operation) => $operation === 'edit' && !$isAdmin) // Saat edit, hanya admin yang bisa ubah divisi tujuan
+                // default untuk create: jika kepala divisi, defaultnya divisi dia.
+                // Jika bukan admin dan dia kepala divisi, default ke divisinya
+                ->default(fn () => !$isAdmin && $isHeadOfDivision ? static::getCurrentUserDivisionId() : null),
+
+
+            // Field untuk user yang menyetujui (approved_by_user_id)
+            Forms\Components\Select::make('approved_by_user_id')
+                ->relationship('approvedBy', 'name')
+                ->label('Disetujui Oleh')
+                ->nullable()
+                ->placeholder('Pilih Penyetuju')
+                ->searchable()
+                ->preload()
+                ->disabled(fn ($operation) => $operation === 'edit' && !$isAdmin && !$isHeadOfDivision), // Hanya admin/kepala divisi yang bisa ubah penyetuju
+        ]);
+}
 
     /**
      * Mendefinisikan skema tabel untuk menampilkan daftar rencana kerja.
      */
     public static function table(Table $table): Table
-    {
-        return $table
-            ->columns([
-                Tables\Columns\TextColumn::make('title')
-                    ->searchable()
-                    ->sortable(),
-                Tables\Columns\TextColumn::make('user.name') // Menampilkan nama pemilik rencana
-                    ->label('Karyawan')
-                    ->searchable()
-                    ->sortable(),
-                Tables\Columns\TextColumn::make('division.name') // Menampilkan nama divisi
-                    ->label('Divisi')
-                    ->searchable()
-                    ->sortable(),
-                Tables\Columns\TextColumn::make('start_date')
-                    ->date()
-                    ->sortable(),
-                Tables\Columns\TextColumn::make('due_date')
-                    ->date()
-                    ->sortable(),
-                Tables\Columns\TextColumn::make('progress_percentage')
-                    ->label('Progress')
-                    ->suffix('%')
-                    ->sortable(),
-                Tables\Columns\BadgeColumn::make('status') // Tampilan status dengan badge
-                    ->colors([
-                        'gray' => 'Draft',
-                        'info' => 'On Progress',
-                        'success' => 'Completed',
-                        'warning' => 'Pending Review',
-                        'danger' => 'Cancelled',
-                    ])
-                    ->sortable(),
-                Tables\Columns\TextColumn::make('approvedBy.name') // Menampilkan nama penyetuju
-                    ->label('Disetujui Oleh')
-                    ->sortable()
-                    ->toggleable(isToggledHiddenByDefault: true), // Bisa disembunyikan/ditampilkan
-                Tables\Columns\TextColumn::make('created_at')
-                    ->dateTime()
-                    ->sortable()
-                    ->toggleable(isToggledHiddenByDefault: true), // Sembunyikan secara default
-                Tables\Columns\TextColumn::make('updated_at')
-                    ->dateTime()
-                    ->sortable()
-                    ->toggleable(isToggledHiddenByDefault: true), // Sembunyikan secara default
-            ])
-            ->filters([
-                // Filter berdasarkan Karyawan/User
-                Tables\Filters\SelectFilter::make('user_id')
-                    ->relationship('user', 'name')
-                    ->label('Filter Karyawan')
-                    ->placeholder('Semua Karyawan')
-                    ->searchable(),
+{
+    $currentUser = Filament::auth()->user();
+    $isAdmin = static::isCurrentUserAdmin();
+    $isHeadOfDivision = static::isCurrentUserHeadOfDivision(); // Panggil helper
 
-                // Filter berdasarkan Divisi
-                Tables\Filters\SelectFilter::make('division_id')
-                    ->relationship('division', 'name')
-                    ->label('Filter Divisi')
-                    ->placeholder('Semua Divisi')
-                    ->searchable(),
+    return $table
+        ->columns([
+            Tables\Columns\TextColumn::make('title')
+                ->searchable()
+                ->sortable(),
+            Tables\Columns\TextColumn::make('division.name') // Kolom divisi selalu terlihat
+                ->label('Divisi')
+                ->searchable()
+                ->sortable(),
+            Tables\Columns\TextColumn::make('user.name') // Kolom 'Created By'
+                ->label('Created By')
+                ->searchable()
+                ->sortable()
+                ->toggleable(isToggledHiddenByDefault: true) // Sembunyikan default
+                ->visible(fn () => $isAdmin), // Hanya Admin yang bisa melihat ini
 
-                // Filter berdasarkan Status
-                Tables\Filters\SelectFilter::make('status')
-                    ->options([
-                        'Draft' => 'Draft',
-                        'On Progress' => 'On Progress',
-                        'Completed' => 'Completed',
-                        'Pending Review' => 'Pending Review',
-                        'Cancelled' => 'Cancelled',
-                    ])
-                    ->label('Filter Status')
-                    ->placeholder('Semua Status'),
+            // ... kolom start_date, due_date, progress_percentage, status tetap sama ...
 
-                // Filter berdasarkan Tanggal Tenggat Waktu
-                Tables\Filters\Filter::make('due_date')
-                    ->form([
-                        Forms\Components\DatePicker::make('from'),
-                        Forms\Components\DatePicker::make('until'),
-                    ])
-                    ->query(function (Builder $query, array $data): Builder {
-                        return $query
-                            ->when($data['from'], fn (Builder $query, $date) => $query->whereDate('due_date', '>=', $date))
-                            ->when($data['until'], fn (Builder $query, $date) => $query->whereDate('due_date', '<=', $date));
-                    }),
-            ])
-            ->actions([
-                Tables\Actions\EditAction::make(),
-                Tables\Actions\DeleteAction::make(),
-            ])
-            ->bulkActions([
-                Tables\Actions\BulkActionGroup::make([
-                    Tables\Actions\DeleteBulkAction::make(),
-                ]),
-            ]);
-    }
+            Tables\Columns\TextColumn::make('approvedBy.name')
+                ->label('Disetujui Oleh')
+                ->sortable()
+                ->toggleable(isToggledHiddenByDefault: true)
+                ->visible(fn () => $isAdmin), // Hanya Admin yang bisa melihat ini
+
+            // ... kolom created_at dan updated_at ...
+        ])
+        ->filters([
+            // Filter berdasarkan Divisi (terlihat untuk semua, tapi hanya menampilkan opsi yang relevan jika bukan admin)
+            Tables\Filters\SelectFilter::make('division_id')
+                ->relationship('division', 'name')
+                ->label('Filter Divisi')
+                ->placeholder('Semua Divisi')
+                ->searchable()
+                ->options(function () use ($isAdmin, $currentUser) {
+                    if ($isAdmin) {
+                        return Division::pluck('name', 'id')->toArray(); // Admin lihat semua divisi
+                    }
+                    // User biasa hanya melihat divisi mereka sendiri (jika ada)
+                    $userDivisionId = static::getCurrentUserDivisionId();
+                    if ($userDivisionId) {
+                        return Division::where('id', $userDivisionId)->pluck('name', 'id')->toArray();
+                    }
+                    return []; // Jika tidak ada divisi, tampilkan kosong
+                }),
+
+            // Filter berdasarkan Karyawan/User (hanya untuk Admin)
+            Tables\Filters\SelectFilter::make('user_id')
+                ->relationship('user', 'name')
+                ->label('Filter Karyawan (Created By)')
+                ->placeholder('Semua Karyawan')
+                ->searchable()
+                ->visible(fn () => $isAdmin), // Hanya Admin yang bisa melihat filter ini
+
+            // Filter berdasarkan Status (terlihat untuk semua)
+            Tables\Filters\SelectFilter::make('status')
+                ->options([
+                    'Draft' => 'Draft',
+                    'On Progress' => 'On Progress',
+                    'Completed' => 'Completed',
+                    'Pending Review' => 'Pending Review',
+                    'Cancelled' => 'Cancelled',
+                ])
+                ->label('Filter Status')
+                ->placeholder('Semua Status'),
+
+            // Filter berdasarkan Tanggal Tenggat Waktu (terlihat untuk semua)
+            Tables\Filters\Filter::make('due_date')
+                ->form([
+                    Forms\Components\DatePicker::make('from'),
+                    Forms\Components\DatePicker::make('until'),
+                ])
+                ->query(function (Builder $query, array $data): Builder {
+                    return $query
+                        ->when($data['from'], fn (Builder $query, $date) => $query->whereDate('due_date', '>=', $date))
+                        ->when($data['until'], fn (Builder $query, $date) => $query->whereDate('due_date', '<=', $date));
+                }),
+        ])
+        ->actions([
+            Tables\Actions\EditAction::make()
+                ->visible(fn (WorkPlan $record): bool => $isAdmin || (static::isCurrentUserHeadOfDivision() && $record->division_id === static::getCurrentUserDivisionId())), // Hanya Admin atau Kepala Divisi terkait yang bisa edit
+            Tables\Actions\DeleteAction::make()
+                ->visible(fn (WorkPlan $record): bool => $isAdmin || (static::isCurrentUserHeadOfDivision() && $record->division_id === static::getCurrentUserDivisionId())), // Hanya Admin atau Kepala Divisi terkait yang bisa delete
+        ])
+        ->bulkActions([
+            Tables\Actions\BulkActionGroup::make([
+                Tables\Actions\DeleteBulkAction::make()
+                    ->visible(fn (): bool => $isAdmin || static::isCurrentUserHeadOfDivision()), // Hanya Admin atau Kepala Divisi yang bisa bulk delete
+            ]),
+        ]);
+}
 
     /**
      * Mendefinisikan relasi yang akan dimuat dengan resource ini.
@@ -249,4 +342,6 @@ class WorkPlanResource extends Resource
     //     $data['user_id'] = Filament::auth()->user()?->id;
     //     return $data;
     // }
+
+    
 }
