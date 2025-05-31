@@ -38,8 +38,7 @@ class DivisionResource extends Resource
                 Select::make('head_id')
                     ->relationship('head', 'name')
                     ->label('Kepala Divisi')
-                    ->searchable()
-                    ->required(),
+                    ->searchable(),
             ]);
     }
 

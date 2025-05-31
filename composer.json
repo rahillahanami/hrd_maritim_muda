@@ -9,6 +9,7 @@
         "php": "^8.2",
         "bezhansalleh/filament-shield": "^3.3",
         "filament/filament": "^3.3",
+        "illuminate/support": "*",
         "laravel/framework": "^12.0",
         "laravel/tinker": "^2.10.1",
         "saade/filament-fullcalendar": "^3.2"
