@@ -15,7 +15,7 @@ use Illuminate\Database\Eloquent\SoftDeletingScope;
 use Filament\Facades\Filament;
 use App\Models\User;
 use App\Models\Employee;
-use App\Models\Division; // Pastikan ini di-import
+use App\Models\Division;
 
 class WorkPlanResource extends Resource
 {
@@ -55,8 +55,14 @@ class WorkPlanResource extends Resource
      */
 
      public static function getEloquentQuery(): Builder
-{
+    {
     $currentUser = Filament::auth()->user();
+
+     if (static::isCurrentUserAdmin()) {
+        return parent::getEloquentQuery()->withoutGlobalScopes([
+            SoftDeletingScope::class,
+        ]);
+    }
 
     // Jika user tidak login atau tidak punya data employee, jangan tampilkan apa-apa
     if (!$currentUser || !$currentUser->employee) {
@@ -66,11 +72,7 @@ class WorkPlanResource extends Resource
     }
 
     // Jika user adalah Admin
-    if (static::isCurrentUserAdmin()) {
-        return parent::getEloquentQuery()->withoutGlobalScopes([
-            SoftDeletingScope::class,
-        ]);
-    }
+   
 
     // Jika user adalah Kepala Divisi atau Anggota Divisi biasa
     $userDivisionId = static::getCurrentUserDivisionId();
@@ -103,6 +105,10 @@ class WorkPlanResource extends Resource
 
     // Apakah user ini kepala divisi DARI WorkPlan yang sedang diedit?
     $isEditingOwnDivisionWorkPlan = $currentWorkPlanDivisionId === $currentUserDivisionId && $isHeadOfDivision;
+
+    // Tentukan apakah field division_id harus disabled
+    // Ini akan disabled jika bukan admin, dan saat create, atau saat edit workplan divisinya sendiri.
+    $shouldDisableDivisionField = !$isAdmin && (request()->routeIs('filament.admin.resources.work-plans.create') || $isEditingOwnDivisionWorkPlan);
 
 
     return $form
@@ -179,10 +185,11 @@ class WorkPlanResource extends Resource
 
             // user_id: Ini adalah siapa yang membuat WorkPlan, diisi otomatis dan tidak bisa diedit
             Forms\Components\Select::make('user_id')
+                ->disabled()
                 ->relationship('user', 'name')
                 ->required()
-                ->default(fn () => Filament::auth()->user()?->id)// Otomatis mengisi ID user yang login
-                ->disabled(), // Selalu disabled karena hanya untuk pencatat
+                ->default(fn () => Filament::auth()->user()?->id),// Otomatis mengisi ID user yang login
+                // ->readOnly(), // Selalu disabled karena hanya untuk pencatat
                 // ->hiddenOn('create'), // Sembunyikan saat membuat (karena sudah otomatis)
 
             // Field untuk divisi terkait (division_id)
@@ -192,10 +199,21 @@ class WorkPlanResource extends Resource
                 ->placeholder('Pilih Divisi Terkait')
                 ->searchable()
                 ->preload()
-                ->disabled(fn ($operation) => $operation === 'edit' && !$isAdmin) // Saat edit, hanya admin yang bisa ubah divisi tujuan
-                // default untuk create: jika kepala divisi, defaultnya divisi dia.
-                // Jika bukan admin dan dia kepala divisi, default ke divisinya
-                ->default(fn () => !$isAdmin && $isHeadOfDivision ? static::getCurrentUserDivisionId() : null),
+                // ->disabled(fn ($operation) => $operation === 'edit' && !$isAdmin) // Saat edit, hanya admin yang bisa ubah divisi tujuan
+                // // default untuk create: jika kepala divisi, defaultnya divisi dia.
+                // // Jika bukan admin dan dia kepala divisi, default ke divisinya
+                // ->default(fn () => !$isAdmin && $isHeadOfDivision ? static::getCurrentUserDivisionId() : null),
+                ->disabled(fn ($operation) =>
+                    $operation === 'edit' && !$isAdmin // Admin bisa edit divisi di WorkPlan apapun
+                    || // ATAU
+                    $operation === 'create' && !$isAdmin && $isHeadOfDivision // Jika create, bukan admin, tapi kepala divisi -> otomatis isi divisi dia
+                    || // ATAU
+                    $operation === 'edit' && !$isAdmin && $isEditingOwnDivisionWorkPlan // Jika edit, bukan admin, dan kepala divisi workplan ini
+                )
+                ->default(function () use ($isAdmin, $isHeadOfDivision, $currentUserDivisionId) {
+                    // Jika bukan admin dan dia adalah Kepala Divisi, otomatis isi ID divisinya
+                    return (!$isAdmin && $isHeadOfDivision) ? $currentUserDivisionId : null;
+                }),
 
 
             // Field untuk user yang menyetujui (approved_by_user_id)
@@ -213,64 +231,88 @@ class WorkPlanResource extends Resource
     /**
      * Mendefinisikan skema tabel untuk menampilkan daftar rencana kerja.
      */
-    public static function table(Table $table): Table
+  public static function table(Table $table): Table
 {
     $currentUser = Filament::auth()->user();
     $isAdmin = static::isCurrentUserAdmin();
-    $isHeadOfDivision = static::isCurrentUserHeadOfDivision(); // Panggil helper
+    $isHeadOfDivision = static::isCurrentUserHeadOfDivision();
 
     return $table
         ->columns([
             Tables\Columns\TextColumn::make('title')
                 ->searchable()
                 ->sortable(),
-            Tables\Columns\TextColumn::make('division.name') // Kolom divisi selalu terlihat
+            Tables\Columns\TextColumn::make('division.name')
                 ->label('Divisi')
                 ->searchable()
                 ->sortable(),
-            Tables\Columns\TextColumn::make('user.name') // Kolom 'Created By'
+            Tables\Columns\TextColumn::make('start_date') // <<< Tambahkan
+                ->label('Mulai')
+                ->date()
+                ->sortable(),
+            Tables\Columns\TextColumn::make('due_date') // <<< Tambahkan
+                ->label('Tenggat')
+                ->date()
+                ->sortable(),
+            Tables\Columns\TextColumn::make('progress_percentage') // <<< Tambahkan
+                ->label('Progres')
+                ->suffix('%')
+                ->sortable(),
+            Tables\Columns\BadgeColumn::make('status') // <<< Tambahkan (sudah ada, pastikan di posisi yang baik)
+                ->colors([
+                    'gray' => 'Draft',
+                    'info' => 'On Progress',
+                    'success' => 'Completed',
+                    'warning' => 'Pending Review',
+                    'danger' => 'Cancelled',
+                ])
+                ->sortable(),
+            Tables\Columns\TextColumn::make('user.name') // Created By
                 ->label('Created By')
                 ->searchable()
                 ->sortable()
-                ->toggleable(isToggledHiddenByDefault: true) // Sembunyikan default
-                ->visible(fn () => $isAdmin), // Hanya Admin yang bisa melihat ini
-
-            // ... kolom start_date, due_date, progress_percentage, status tetap sama ...
-
-            Tables\Columns\TextColumn::make('approvedBy.name')
+                ->toggleable(isToggledHiddenByDefault: true)
+                ->visible(fn () => $isAdmin),
+            Tables\Columns\TextColumn::make('approvedBy.name') // Disetujui Oleh
                 ->label('Disetujui Oleh')
                 ->sortable()
                 ->toggleable(isToggledHiddenByDefault: true)
-                ->visible(fn () => $isAdmin), // Hanya Admin yang bisa melihat ini
-
-            // ... kolom created_at dan updated_at ...
+                ->visible(fn () => $isAdmin),
+            Tables\Columns\TextColumn::make('created_at') // Tanggal Dibuat
+                ->label('Dibuat Pada')
+                ->dateTime()
+                ->sortable()
+                ->toggleable(isToggledHiddenByDefault: true)
+                ->visible(fn () => $isAdmin), // Hanya admin yang melihat
         ])
+
         ->filters([
             // Filter berdasarkan Divisi (terlihat untuk semua, tapi hanya menampilkan opsi yang relevan jika bukan admin)
             Tables\Filters\SelectFilter::make('division_id')
-                ->relationship('division', 'name')
-                ->label('Filter Divisi')
-                ->placeholder('Semua Divisi')
-                ->searchable()
-                ->options(function () use ($isAdmin, $currentUser) {
-                    if ($isAdmin) {
-                        return Division::pluck('name', 'id')->toArray(); // Admin lihat semua divisi
-                    }
-                    // User biasa hanya melihat divisi mereka sendiri (jika ada)
-                    $userDivisionId = static::getCurrentUserDivisionId();
-                    if ($userDivisionId) {
-                        return Division::where('id', $userDivisionId)->pluck('name', 'id')->toArray();
-                    }
-                    return []; // Jika tidak ada divisi, tampilkan kosong
-                }),
+                    ->relationship('division', 'name')
+                    ->label('Filter Divisi')
+                    ->placeholder('Semua Divisi')
+                    ->searchable()
+                    ->options(function () use ($isAdmin, $currentUser) {
+                        if ($isAdmin) {
+                            return Division::pluck('name', 'id')->toArray(); // Admin lihat semua divisi
+                        }
+                        // Ini akan disembunyikan untuk non-admin, tapi jika ingin tetap tampilkan opsi divisi sendiri jika tidak disembunyikan:
+                        $userDivisionId = static::getCurrentUserDivisionId();
+                        if ($userDivisionId) {
+                            return Division::where('id', $userDivisionId)->pluck('name', 'id')->toArray();
+                        }
+                        return [];
+                    })
+                    ->visible(fn () => $isAdmin), // <<< TAMBAHKAN ATAU UBAH BARIS INI
 
-            // Filter berdasarkan Karyawan/User (hanya untuk Admin)
-            Tables\Filters\SelectFilter::make('user_id')
-                ->relationship('user', 'name')
-                ->label('Filter Karyawan (Created By)')
-                ->placeholder('Semua Karyawan')
-                ->searchable()
-                ->visible(fn () => $isAdmin), // Hanya Admin yang bisa melihat filter ini
+            // // Filter berdasarkan Karyawan/User (hanya untuk Admin)
+            // Tables\Filters\SelectFilter::make('user_id')
+            //     ->relationship('user', 'name')
+            //     ->label('Filter Karyawan (Created By)')
+            //     ->placeholder('Semua Karyawan')
+            //     ->searchable()
+            //     ->visible(fn () => $isAdmin), // Hanya Admin yang bisa melihat filter ini
 
             // Filter berdasarkan Status (terlihat untuk semua)
             Tables\Filters\SelectFilter::make('status')
