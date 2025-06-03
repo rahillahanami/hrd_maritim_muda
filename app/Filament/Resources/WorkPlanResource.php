@@ -16,6 +16,7 @@ use Filament\Facades\Filament;
 use App\Models\User;
 use App\Models\Employee;
 use App\Models\Division;
+use Illuminate\Support\Facades\Log;
 
 class WorkPlanResource extends Resource
 {
@@ -32,22 +33,31 @@ class WorkPlanResource extends Resource
 
     // *** Tambahkan method helper ini di dalam kelas WorkPlanResource ***
     protected static function isCurrentUserAdmin(): bool
-    {
-        $user = Filament::auth()->user();
-        return $user && $user->hasRole('super_admin'); // Sesuaikan 'admin' dengan nama peran admin Anda
-    }
+{
+    $user = Filament::auth()->user();
+    $isAdmin = $user && $user->hasRole('super_admin');
+    Log::info('DEBUG - isCurrentUserAdmin: ' . ($isAdmin ? 'TRUE' : 'FALSE') . ' for user ID: ' . ($user->id ?? 'NULL'));
+    return $isAdmin;
+}
 
-    protected static function isCurrentUserHeadOfDivision(): bool
-    {
-        $user = Filament::auth()->user();
-        if (!$user || !$user->employee) {
-            return false; // User tidak login atau tidak punya data employee
-        }
-
-        // Cek apakah ID employee dari user ini adalah head_id di divisi yang terkait dengan employee tersebut
-        // atau di divisi manapun yang dia pimpin.
-        return Division::where('head_id', $user->employee->id)->exists();
+protected static function isCurrentUserHeadOfDivision(): bool
+{
+    $user = Filament::auth()->user();
+    $isHead = false;
+    if ($user && $user->employee) {
+        $isHead = Division::where('head_id', $user->employee->id)->exists();
     }
+    Log::info('DEBUG - isCurrentUserHeadOfDivision: ' . ($isHead ? 'TRUE' : 'FALSE') . ' for user ID: ' . ($user->id ?? 'NULL') . ' (Employee ID: ' . ($user->employee->id ?? 'NULL') . ')');
+    return $isHead;
+}
+
+public static function canCreate(): bool
+{
+    $canCreate = static::isCurrentUserAdmin() || static::isCurrentUserHeadOfDivision();
+    $user = Filament::auth()->user(); // Ambil user lagi untuk log final
+    Log::info('DEBUG - canCreate final decision: ' . ($canCreate ? 'TRUE' : 'FALSE') . ' for user ID: ' . ($user->id ?? 'NULL'));
+    return $canCreate;
+}
 
     protected static function getCurrentUserDivisionId(): ?int
     {
@@ -95,7 +105,8 @@ class WorkPlanResource extends Resource
     return parent::getEloquentQuery()->whereRaw('1 = 0')->withoutGlobalScopes([
         SoftDeletingScope::class,
     ]);
-}
+    }
+    
     public static function form(Form $form): Form
 {
     $currentUser = Filament::auth()->user();
