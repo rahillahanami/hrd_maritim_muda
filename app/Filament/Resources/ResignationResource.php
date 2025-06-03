@@ -13,17 +13,23 @@ use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\SoftDeletingScope;
 use Filament\Facades\Filament; // Import Facade Filament
+use Filament\Notifications\Notification;
 use Illuminate\Support\Carbon;
 
 class ResignationResource extends Resource
 {
     protected static ?string $model = Resignation::class;
 
-    protected static ?string $navigationIcon = 'heroicon-o-user-minus'; // Ganti ikon navigasi
+     protected static ?string $navigationIcon = 'heroicon-o-user-minus'; // Sudah benar
+    protected static ?string $navigationGroup = 'Manajemen HRD'; // Sudah benar
+    protected static ?int $navigationSort = 1; // Urutan pertama di HR Management
 
-    // Konfigurasi label di navigasi
-    protected static ?string $navigationGroup = 'HR Management'; // Kelompokkan di navigasi
-    protected static ?int $navigationSort = 3; // Urutan di dalam grup
+    protected static ?string $modelLabel = 'Pengunduran Diri';
+    protected static ?string $pluralModelLabel = 'Daftar Pengunduran Diri';
+    protected static ?string $navigationLabel = 'Pengunduran Diri'; // <<< UBAH INI
+    protected static ?string $slug = 'pengunduran-diri';
+
+
 
     protected static function isCurrentUserAdmin(): bool
     {
@@ -298,7 +304,10 @@ class ResignationResource extends Resource
                             'status' => 'Approved',
                             'approved_by_user_id' => $currentUser->id,
                         ]);
-                        // Filament::notify('success', 'Pengajuan Resign telah disetujui.');
+                        Notification::make() // Menggunakan Notification Facade
+                            ->title('Pengajuan Resign telah disetujui.')
+                            ->success()
+                            ->send();
                     }),
 
                 // *** AKSI KUSTOM BARU: REJECT ***
@@ -313,7 +322,10 @@ class ResignationResource extends Resource
                             'status' => 'Rejected',
                             'approved_by_user_id' => $currentUser->id,
                         ]);
-                        // Filament::notify('success', 'Pengajuan Resign telah ditolak.');
+                        Notification::make() // Menggunakan Notification Facade
+                            ->title('Pengajuan Resign telah ditolak.')
+                            ->success()
+                            ->send();
                     }),
 
                 // *** AKSI KUSTOM BARU: CANCEL (untuk pemilik pengajuan) ***
@@ -328,6 +340,9 @@ class ResignationResource extends Resource
                             'status' => 'Cancelled',
                         ]);
                         // Filament::notify('info', 'Pengajuan Resign Anda telah dibatalkan.');
+                        Notification::make() ->title('Pengajuan Resign Anda telah dibatalkan.')
+                            ->success()
+                            ->send();
                     }),
             ])
             ->bulkActions([

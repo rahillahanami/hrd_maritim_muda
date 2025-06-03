@@ -21,9 +21,14 @@ class WorkPlanResource extends Resource
 {
     protected static ?string $model = WorkPlan::class;
 
-    protected static ?string $navigationIcon = 'heroicon-o-clipboard-document-list';
-    protected static ?string $navigationGroup = 'Performance Management';
-    protected static ?int $navigationSort = 1;
+    protected static ?string $navigationIcon = 'heroicon-o-clipboard-document-list'; // Sudah benar
+    protected static ?string $navigationGroup = 'Manajemen Kinerja'; // Sudah benar
+    protected static ?int $navigationSort = 1; // Urutan pertama di Performance Management
+
+    protected static ?string $modelLabel = 'Rencana Kerja';
+    protected static ?string $pluralModelLabel = 'Daftar Rencana Kerja';
+    protected static ?string $navigationLabel = 'Rencana Kerja'; // <<< UBAH INI
+    protected static ?string $slug = 'rencana-kerja'; // Slug untuk URL
 
     // *** Tambahkan method helper ini di dalam kelas WorkPlanResource ***
     protected static function isCurrentUserAdmin(): bool

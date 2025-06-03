@@ -24,9 +24,14 @@ class EventResource extends Resource
 {
     protected static ?string $model = Event::class;
 
-    protected static ?string $navigationIcon = 'heroicon-o-rectangle-stack';
+    protected static ?string $navigationIcon = 'heroicon-o-calendar'; // Contoh ikon
+    protected static ?string $navigationGroup = 'Manajemen Kinerja'; // <<< Kelompokkan
+    protected static ?int $navigationSort = 3; // Urutan ketiga di Performance Management
 
-     protected static ?string $navigationGroup = 'Performance Management';
+    protected static ?string $modelLabel = 'Acara/Kegiatan';
+    protected static ?string $pluralModelLabel = 'Daftar Acara/Kegiatan';
+    protected static ?string $navigationLabel = 'Acara/Kegiatan'; // <<< UBAH INI
+    protected static ?string $slug = 'acara-kegiatan'; // Slug untuk URL
 
     public static function form(Form $form): Form
     {

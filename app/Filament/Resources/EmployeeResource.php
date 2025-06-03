@@ -24,10 +24,15 @@ use Spatie\Permission\Models\Role;
 class EmployeeResource extends Resource
 {
     protected static ?string $model = Employee::class;
-    protected static ?string $navigationIcon = 'heroicon-o-users';
-    protected static ?string $navigationLabel = 'Pegawai';
-    protected static ?string $slug = 'employee';
-    public static ?string $label = 'Pegawai';
+    protected static ?string $navigationIcon = 'heroicon-o-users'; // Contoh ikon
+    protected static ?string $navigationGroup = 'Organisasi'; // <<< Kelompokkan bersama Divisi
+    protected static ?int $navigationSort = 2;
+
+    protected static ?string $modelLabel = 'Pegawai'; // Label untuk satu record
+    protected static ?string $pluralModelLabel = 'Daftar Pegawai'; // Label untuk banyak record
+    protected static ?string $navigationLabel = 'Pegawai'; // <<< UBAH INI
+    
+    protected static ?string $slug = 'pegawai';
 
     public static function form(Form $form): Form
     {

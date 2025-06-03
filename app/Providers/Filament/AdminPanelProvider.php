@@ -18,6 +18,7 @@ use Illuminate\Routing\Middleware\SubstituteBindings;
 use Illuminate\Session\Middleware\StartSession;
 use Illuminate\View\Middleware\ShareErrorsFromSession;
 use BezhanSalleh\FilamentShield\FilamentShieldPlugin;
+use Filament\Navigation\NavigationGroup;
 use Saade\FilamentFullCalendar\FilamentFullCalendarPlugin;
 
 class AdminPanelProvider extends PanelProvider
@@ -70,6 +71,24 @@ class AdminPanelProvider extends PanelProvider
             
             ->plugins([
                 FilamentShieldPlugin::make(),
-            ]);
+            ])
+            ->navigationGroups([
+                NavigationGroup::make('Organisasi') // Cukup nama grup sebagai argumen
+                    ->label('Organisasi'), // Hanya label, tanpa icon dan sort
+
+                NavigationGroup::make('Presensi')
+                    ->label('Presensi'),
+
+                NavigationGroup::make('Manajemen Kinerja')
+                    ->label('Manajemen Kinerja'),
+
+                NavigationGroup::make('Manajemen Sumber Daya Manusia')
+                    ->label('Manajemen Sumber Daya Manusia'),
+
+                NavigationGroup::make('Pelindung')
+                    ->label('Pelindung'),
+            ])
+            ;
+            
     }
 }

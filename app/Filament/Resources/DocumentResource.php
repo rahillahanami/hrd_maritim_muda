@@ -26,9 +26,14 @@ class DocumentResource extends Resource
 {
     protected static ?string $model = Document::class;
 
-    protected static ?string $navigationIcon = 'heroicon-o-rectangle-stack';
+     protected static ?string $navigationIcon = 'heroicon-o-document-duplicate'; // Contoh ikon
+    protected static ?string $navigationGroup = 'Manajemen Kinerja'; // <<< Kelompokkan
+    protected static ?int $navigationSort = 2; // Urutan kedua di Performance Management
 
-     protected static ?string $navigationGroup = 'Performance Management';
+    protected static ?string $modelLabel = 'Dokumen';
+    protected static ?string $pluralModelLabel = 'Daftar Dokumen';
+    protected static ?string $navigationLabel = 'Dokumen'; // <<< UBAH INI
+    protected static ?string $slug = 'dokumen'; // Slug untuk URL
 
 
 

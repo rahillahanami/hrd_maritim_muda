@@ -27,11 +27,14 @@ class AttendanceResource extends Resource
 
 
     protected static ?string $model = Attendance::class;
-    protected static ?string $navigationIcon = 'heroicon-o-clipboard-document-check';
-    protected static ?string $navigationGroup = 'Presensi';
-    protected static ?string $navigationLabel = 'Absensi';
-    protected static ?string $label = 'Absensi';
-    protected static ?string $slug = 'Absensi';
+    protected static ?string $navigationIcon = 'heroicon-o-finger-print'; // Contoh ikon
+    protected static ?string $navigationGroup = 'Presensi'; // <<< Kelompokkan (sudah)
+    protected static ?int $navigationSort = 1;
+
+    protected static ?string $modelLabel = 'Absensi';
+    protected static ?string $pluralModelLabel = 'Data Absensi';
+    protected static ?string $navigationLabel = 'Absensi'; // <<< (sudah benar)
+    protected static ?string $slug = 'absensi';
 
 //     protected static function mutateFormDataBeforeCreate(array $data): array
 // {
