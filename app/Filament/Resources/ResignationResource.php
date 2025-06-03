@@ -157,14 +157,16 @@ class ResignationResource extends Resource
                     ->required()
                     ->disabled(fn() => !$isAdmin) // <<< HANYA ADMIN YANG BISA MENGUBAH STATUS (tetap)
                     ->default('Pending')
-                    ->columnSpanFull(),
+                    ->columnSpanFull()
+                    ->visible(fn() => $isAdmin),
 
                 // Field untuk Catatan Internal (hanya terlihat dan bisa diubah oleh HR/Manajer)
                 Forms\Components\Textarea::make('notes')
                     ->nullable()
                     ->rows(3)
                     ->disabled(fn() => !$isAdmin) // <<< HANYA ADMIN YANG BISA MENGUBAH CATATAN (tetap)
-                    ->placeholder('Catatan internal untuk HR/Manajer.'),
+                    ->placeholder('Catatan internal untuk HR/Manajer.')
+                    ->visible(fn() => $isAdmin),
 
                 // Field untuk User yang Menyetujui/Menolak
                 Forms\Components\Select::make('approved_by_user_id')
@@ -174,7 +176,8 @@ class ResignationResource extends Resource
                     ->nullable()
                     ->placeholder('Pilih Penyetuju/Penolak')
                     ->searchable()
-                    ->preload(),
+                    ->preload()
+                    ->visible(fn() => $isAdmin),
             ]);
     }
 
@@ -221,16 +224,19 @@ class ResignationResource extends Resource
                 Tables\Columns\TextColumn::make('approvedBy.name') // Menampilkan nama penyetuju
                     ->label('Disetujui Oleh')
                     ->sortable()
-                    ->toggleable(isToggledHiddenByDefault: true), // Sembunyikan secara default
+                    ->toggleable(isToggledHiddenByDefault: true)
+                    ->visible(fn() => $isAdmin), // Sembunyikan secara default
                 Tables\Columns\TextColumn::make('notes')
                     ->label('Catatan')
                     ->words(10)
                     ->tooltip(fn(?string $state): ?string => $state) // <<< UBAH BARIS INI
-                    ->toggleable(isToggledHiddenByDefault: true),
+                    ->toggleable(isToggledHiddenByDefault: true)
+                    ->visible(fn() => $isAdmin),
                 Tables\Columns\TextColumn::make('created_at')
                     ->dateTime()
                     ->sortable()
-                    ->toggleable(isToggledHiddenByDefault: true),
+                    ->toggleable(isToggledHiddenByDefault: true)
+                    ->visible(fn() => $isAdmin),
                 Tables\Columns\TextColumn::make('updated_at')
                     ->dateTime()
                     ->sortable()
