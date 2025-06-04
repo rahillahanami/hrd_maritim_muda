@@ -39,10 +39,20 @@ class Employee extends Model
         return $this->hasMany(Attendance::class);
     }
 
-        public function headedDivisions()
+    public function headedDivisions()
     {
         // Asumsi: 'head_id' di tabel divisions merujuk ke 'employees.id'
         return $this->hasMany(Division::class, 'head_id');
+    }
+
+    public function scores()
+    {
+        return $this->hasMany(EmployeeScore::class);
+    }
+
+    public function performanceResults()
+    {
+        return $this->hasMany(PerformanceResult::class);
     }
 
 }
