@@ -21,6 +21,9 @@ class EditEmployeeScore extends Page implements HasForms
     protected static ?string $navigationLabel = 'Edit Skor Karyawan';
     protected static string $view = 'filament.pages.edit-employee-score';
     protected static ?string $title = 'Edit Skor Karyawan';
+    protected static ?string $navigationGroup = 'Sistem Pengambilan Keputusan'; // <<< NAMA GRUP
+    protected static ?int $navigationSort = 3; // <<< URUTAN KETIGA DI GRUP INI
+
 
     public $employee_id, $evaluation_id, $scores = [];
 
@@ -70,7 +73,7 @@ class EditEmployeeScore extends Page implements HasForms
             );
         }
 
-        
+
         Notification::make()
             ->title('Skor berhasil diperbarui.')
             ->success()

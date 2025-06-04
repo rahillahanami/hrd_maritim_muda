@@ -26,6 +26,9 @@ class EvaluatePerformance extends Page implements HasForms
     protected static ?string $navigationIcon = 'heroicon-o-calculator';
     protected static string $view = 'filament.pages.evaluate-performance';
     protected static ?string $title = 'Evaluasi Kinerja Karyawan';
+    protected static ?string $navigationGroup = 'Sistem Pengambilan Keputusan'; // <<< NAMA GRUP
+    protected static ?int $navigationSort = 4; // <<< URUTAN KETIGA DI GRUP INI
+
 
     public function mount(): void
     {

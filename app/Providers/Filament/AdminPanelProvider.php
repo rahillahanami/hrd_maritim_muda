@@ -85,6 +85,9 @@ class AdminPanelProvider extends PanelProvider
                 NavigationGroup::make('Manajemen Sumber Daya Manusia')
                     ->label('Manajemen Sumber Daya Manusia'),
 
+                NavigationGroup::make('Sistem Pengambilan Keputusan')
+                    ->label('Sistem Pengambilan Keputusan'),
+
                 NavigationGroup::make('Pelindung')
                     ->label('Pelindung'),
             ])

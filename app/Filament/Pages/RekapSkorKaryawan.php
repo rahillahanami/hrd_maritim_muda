@@ -19,6 +19,8 @@ class RekapSkorKaryawan extends Page implements HasForms
     protected static ?string $title = 'Rekap Skor Karyawan';
     protected static ?string $navigationLabel = 'Rekap Skor';
     protected static string $view = 'filament.pages.rekap-skor-karyawan';
+    protected static ?string $navigationGroup = 'Sistem Pengambilan Keputusan'; // <<< NAMA GRUP
+    protected static ?int $navigationSort = 2; // <<< URUTAN KEDUA DI GRUP INI
 
     public $employee_id, $evaluation_id;
     public $results = [];

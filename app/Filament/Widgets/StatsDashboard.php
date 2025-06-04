@@ -10,8 +10,6 @@ use App\Models\Employee;
 class StatsDashboard extends BaseWidget
 {
     protected function getStats(): array
-
-
     {
 
         $countDivisi = Division::count();
@@ -21,6 +19,13 @@ class StatsDashboard extends BaseWidget
             Stat::make('Jumlah Divisi', $countDivisi . ' Divisi'),
             Stat::make('Jumlah Pegawai', $countPegawai . ' Pegawai'),
             Stat::make('Average time on page', '3:12'),
+        ];
+    }
+
+    protected function getWidgets(): array
+    {
+        return [
+            PerformanceChart::class,
         ];
     }
 }

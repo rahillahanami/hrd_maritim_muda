@@ -23,6 +23,8 @@ class InputEmployeeScore extends Page implements HasForms
     protected static string $view = 'filament.pages.input-employee-score';
     protected static ?string $navigationLabel = 'Input Skor Karyawan';
     protected static ?string $title = 'Input Skor Karyawan';
+    protected static ?string $navigationGroup = 'Sistem Pengambilan Keputusan'; // <<< NAMA GRUP
+    protected static ?int $navigationSort = 1; // <<< URUTAN PERTAMA DI GRUP INI (untuk "Input Skor Karyawan")
 
     public $employee_id, $evaluation_id, $scores = [];
 
@@ -115,6 +117,4 @@ class InputEmployeeScore extends Page implements HasForms
             'score' => null,
         ])->toArray();
     }
-
-
 }
