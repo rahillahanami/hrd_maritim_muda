@@ -37,6 +37,7 @@ class ResignationResource extends Resource
         return $user && $user->hasRole('super_admin'); // Sesuaikan 'admin' dengan nama peran admin Anda
     }
 
+    
     public static function canCreate(): bool
     {
         // Hanya user biasa (bukan admin) yang bisa membuat pengajuan resign
@@ -49,6 +50,7 @@ class ResignationResource extends Resource
     public static function getEloquentQuery(): Builder
     {
         $currentUser = Filament::auth()->user();
+   
 
         // Jika user tidak login, jangan tampilkan apa-apa
         if (!$currentUser) {
@@ -238,8 +240,8 @@ class ResignationResource extends Resource
                     ->wrap()
                     ->toggleable()
                     ->visible(fn() => $isAdmin),
-                    // ->modalHeading('Catatan Internal')
-                    // ->modalContent(fn(Resignation $record) => $record->notes),
+                // ->modalHeading('Catatan Internal')
+                // ->modalContent(fn(Resignation $record) => $record->notes),
                 Tables\Columns\TextColumn::make('created_at')
                     ->dateTime()
                     ->sortable()
@@ -300,13 +302,41 @@ class ResignationResource extends Resource
                     ->color('success')
                     ->icon('heroicon-o-check-circle')
                     ->requiresConfirmation()
-                    ->visible(fn(Resignation $record): bool => $isAdmin && $record->status === 'Pending') // Hanya Admin & status Pending
+                    ->visible(fn(Resignation $record): bool => $isAdmin && $record->status === 'Pending')
                     ->action(function (Resignation $record) use ($currentUser) {
+                        // 1. Update status pengajuan resign
                         $record->update([
                             'status' => 'Approved',
                             'approved_by_user_id' => $currentUser->id,
                         ]);
-                        Notification::make()
+
+                        // 2. Soft delete user dan employee yang bersangkutan
+                        $resigningUser = $record->user; // Ambil objek User dari relasi Resignation
+
+                        if ($resigningUser) {
+                            $resigningUser->delete(); // Ini akan mengisi deleted_at di tabel users
+
+                            // Pastikan user tersebut memiliki data employee yang terhubung
+                            if ($resigningUser->employee) {
+                                $resigningUser->employee->delete(); // Soft delete employee yang terhubung
+                                Notification::make()
+                                    ->title('Akun karyawan dan data employee telah dinonaktifkan.')
+                                    ->success()
+                                    ->send();
+                            } else {
+                                Notification::make()
+                                    ->title('Akun karyawan dinonaktifkan, namun data employee tidak ditemukan.')
+                                    ->warning()
+                                    ->send();
+                            }
+                        } else {
+                            Notification::make()
+                                ->title('Pengajuan Resign disetujui, tetapi akun user tidak ditemukan.')
+                                ->warning()
+                                ->send();
+                        }
+
+                        Notification::make() // Notifikasi utama untuk persetujuan resign
                             ->title("Pengajuan resign oleh {$record->user->name} telah disetujui.")
                             ->success()
                             ->send();

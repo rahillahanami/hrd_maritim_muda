@@ -32,6 +32,6 @@ class Attendance extends Model
     // Relasi ke Employee (sudah benar)
     public function employee()
     {
-        return $this->belongsTo(Employee::class, 'employee_id');
+        return $this->belongsTo(Employee::class)->withTrashed();
     }
 }

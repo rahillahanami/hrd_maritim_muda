@@ -17,6 +17,7 @@ class Salary extends Model
         'bonus',
         'final_salary',
         'performance_score',
+        "potongan"
     ];
 
     public function employee()

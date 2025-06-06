@@ -12,24 +12,27 @@ class Employee extends Model
 
     protected $guarded = [];
 
-    //  protected $fillable = [
-    //     'user_id', // Sudah ada
-    //     'name',
-    //     'nip',
-    //     'phone_number',
-    //     'position',
-    //     'department',
-    //     'date_joined',
-    //     'date_of_birth',
-    //     'gender',
-    //     'address',
-    // ];
+    protected $fillable = [
+        'user_id',
+        'name',
+        'nip',
+        'gender',
+        'birth_date',
+        'phone_number',
+        'address',
+        'division_id',
+    ];
+
+    protected $casts = [
+        'date_joined' => 'date',
+        'date_of_birth' => 'date',
+        'deleted_at' => 'datetime', // <<< PASTIKAN INI ADA
+    ];
 
     public function user()
     {
-        return $this->belongsTo(User::class);
+        return $this->belongsTo(User::class)->withTrashed();
     }
-
     public function division()
     {
         return $this->belongsTo(Division::class);
@@ -55,5 +58,4 @@ class Employee extends Model
     {
         return $this->hasMany(PerformanceResult::class);
     }
-
 }

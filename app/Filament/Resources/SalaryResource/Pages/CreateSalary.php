@@ -9,6 +9,7 @@ use App\Models\PerformanceResult;
 use App\Models\Employee;
 use App\Models\Evaluation;
 use App\Models\Leave;
+use App\Models\Attendance;
 use Carbon\Carbon;
 
 class CreateSalary extends CreateRecord
@@ -17,16 +18,16 @@ class CreateSalary extends CreateRecord
 
     public static function calculateLeaveDeduction($employeeId, $period)
     {
-
+        $carbonDate = Carbon::now();
         if (isset($data['period'])) {
             $englishPeriod = convertIndonesianMonthToEnglish($data['period']);
             $carbonDate = \Carbon\Carbon::parse($englishPeriod);
             // kalau mau simpan sebagai tanggal, bisa pakai:
             $data['period_date'] = $carbonDate->format('Y-m-d');
-        }
+        }   
 
-        $start = Carbon::parse($period)->startOfMonth(); // 2025-06-01
-        $end = Carbon::parse($period)->endOfMonth(); // 2025-06-30
+        $start = Carbon::parse($carbonDate)->startOfMonth(); // 2025-06-01
+        $end = Carbon::parse($carbonDate)->endOfMonth(); // 2025-06-30
 
         // Cari cuti approved dan unpaid yang overlap dengan periode
         $leaves = Leave::where('employee_id', $employeeId)
@@ -71,6 +72,39 @@ class CreateSalary extends CreateRecord
         return round($deduction, 2);
     }
 
+    public static function calculateLateDeduction($employeeId, $period, $baseSalary)
+    {
+        $carbonDate = Carbon::now();
+        $periodEnglish = convertIndonesianMonthToEnglish($period);
+        if (isset($period)) {
+            $carbonDate = Carbon::parse($periodEnglish);
+        }
+
+        $start = $carbonDate->copy()->startOfMonth(); // Awal bulan
+        $end = $carbonDate->copy()->endOfMonth(); // Akhir bulan
+
+        // Ambil data keterlambatan dari tabel attendances
+        $attendances = Attendance::where('employee_id', $employeeId)
+            ->whereBetween('date', [$start, $end])
+            ->get();
+
+        $totalLateMinutes = $attendances->sum('late_minutes'); // Total menit keterlambatan
+
+
+        // Ambil gaji pokok karyawan
+        $employee = Employee::find($employeeId);
+
+        $workDays = 22; // Total hari kerja per bulan, bisa disesuaikan
+        $workHoursPerDay = 8; // Jam kerja per hari
+        $workMinutesPerMonth = $workDays * $workHoursPerDay * 60; // Total menit kerja per bulan
+
+        // Hitung gaji per menit
+        $salaryPerMinute = $baseSalary / $workMinutesPerMonth;
+
+        // Hitung potongan keterlambatan
+        $deduction = $salaryPerMinute * $totalLateMinutes;
+        return round($deduction, 2);
+    }
 
     public function mutateFormDataBeforeCreate(array $data): array
     {
@@ -80,12 +114,11 @@ class CreateSalary extends CreateRecord
 
         $score = $result?->score ?? 0;
         $bonus = $score * 0.1 * $data['base_salary'];
-        $potongan = self::calculateLeaveDeduction($data['employee_id'], Evaluation::find($data['evaluation_id'])->period);
-
+        $potongan = self::calculateLateDeduction($data['employee_id'], Evaluation::find($data['evaluation_id'])->period, $data['base_salary']);
         $data['performance_score'] = $score;
         $data['bonus'] = $bonus;
         $data['potongan'] = $potongan;
-        $data['final_salary'] = $data['base_salary'] + $bonus;
+        $data['final_salary'] = $data['base_salary'] + $bonus - $potongan;
 
         return $data;
     }
