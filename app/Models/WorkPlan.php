@@ -40,11 +40,11 @@ class WorkPlan extends Model
      */
     public function user()
     {
-        return $this->belongsTo(User::class);
+        return $this->belongsTo(User::class)->withTrashed();
     }
 
 
-    
+
     /**
      * Get the division that owns the work plan.
      */
