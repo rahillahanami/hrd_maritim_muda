@@ -11,6 +11,7 @@ use Filament\Forms;
 use Filament\Forms\Contracts\HasForms;
 use Filament\Forms\Concerns\InteractsWithForms;
 use App\Models\PerformanceResult;
+use Filament\Facades\Filament;
 use Filament\Notifications\Notification;
 
 class EvaluatePerformance extends Page implements HasForms
@@ -28,6 +29,19 @@ class EvaluatePerformance extends Page implements HasForms
     protected static ?string $title = 'Evaluasi Kinerja Karyawan';
     protected static ?string $navigationGroup = 'Sistem Pengambilan Keputusan'; // <<< NAMA GRUP
     protected static ?int $navigationSort = 4; // <<< URUTAN KETIGA DI GRUP INI
+
+     protected static function isCurrentUserAdmin(): bool
+    {
+        $user = Filament::auth()->user();
+        return $user && $user->hasRole('super_admin'); // Sesuaikan peran admin
+    }
+
+    // *** Tambahkan method canAccess() ini ***
+    public static function canAccess(): bool
+    {
+        // Hanya admin yang bisa mengakses resource Evaluation
+        return static::isCurrentUserAdmin();
+    }
 
 
     public function mount(): void

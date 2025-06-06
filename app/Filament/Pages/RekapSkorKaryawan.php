@@ -6,6 +6,7 @@ use App\Models\Employee;
 use App\Models\Evaluation;
 use App\Models\EvaluationCriteria;
 use App\Models\EmployeeScore;
+use Filament\Facades\Filament;
 use Filament\Pages\Page;
 use Filament\Forms;
 use Filament\Forms\Contracts\HasForms;
@@ -24,6 +25,19 @@ class RekapSkorKaryawan extends Page implements HasForms
 
     public $employee_id, $evaluation_id;
     public $results = [];
+
+     protected static function isCurrentUserAdmin(): bool
+    {
+        $user = Filament::auth()->user();
+        return $user && $user->hasRole('super_admin'); // Sesuaikan peran admin
+    }
+
+    // *** Tambahkan method canAccess() ini ***
+    public static function canAccess(): bool
+    {
+        // Hanya admin yang bisa mengakses resource Evaluation
+        return static::isCurrentUserAdmin();
+    }
 
     public function updated($property): void
     {

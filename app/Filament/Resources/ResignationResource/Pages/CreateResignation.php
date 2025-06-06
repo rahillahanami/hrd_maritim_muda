@@ -3,34 +3,41 @@
 namespace App\Filament\Resources\ResignationResource\Pages;
 
 use App\Filament\Resources\ResignationResource;
+use App\Models\Resignation;
 use Filament\Actions;
 use Filament\Resources\Pages\CreateRecord;
 use Filament\Facades\Filament;
+use Filament\Notifications\Notification;
 
 class CreateResignation extends CreateRecord
 {
     protected static string $resource = ResignationResource::class;
 
-    protected function getFormActions(): array
+    protected function mutateFormDataBeforeCreate(array $data): array
     {
+        $currentUser = Filament::auth()->user();
 
-        $actions = [
-            Actions\CreateAction::make()
-                ->url($this->getResource()::getUrl('index')), // Alihkan ke halaman daftar setelah membuat
-        ];
+        // Cek apakah sudah ada pengajuan pending
+        $existing = Resignation::where('user_id', $currentUser->id)
+            ->where('status', 'Pending')
+            ->exists();
 
-        // Tombol "Batal"
-        $actions[] = Actions\Action::make('cancel')
-            ->label('Batal')
-            ->color('gray')
-            ->url($this->getResource()::getUrl('index'));
+        if ($existing) {
+            Notification::make()
+                ->title('Anda sudah memiliki pengajuan resign yang masih Pending.')
+                ->danger()
+                ->send();
 
-        return $actions;
+            // Redirect balik tanpa menyimpan
+            $this->redirect(ResignationResource::getUrl()); // kembali ke halaman index
+            exit; // penting agar tidak lanjut menyimpan
+        }
+
+        return $data;
     }
 
-    // Opsional: Jika Anda tidak ingin redirect ke halaman edit setelah create
     protected function getRedirectUrl(): string
     {
-        return $this->getResource()::getUrl('index');
+        return ResignationResource::getUrl(); // Setelah berhasil buat, kembali ke index
     }
 }

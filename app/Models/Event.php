@@ -9,20 +9,26 @@ class Event extends Model
 {
     use HasFactory;
 
-    protected $guarded = [];
-   
-    // protected $fillable = [
-    //     'name', // Pastikan 'name' ada di sini jika itu masalah sebelumnya
-    //     'description',
-    //     'starts_at', // Sesuaikan dengan nama kolom datetime di tabel events Anda (misal 'start_date', 'start_at')
-    //     'ends_at',   // Sesuaikan
-    //     'division_id', // Kolom baru untuk divisi
-    // ];
+    protected $fillable = [
+        'name',
+        'description',
+        'starts_at', // Pastikan ini nama kolom di DB
+        'ends_at',   // Pastikan ini nama kolom di DB
+        'division_id',
+        'created_by', // Tetap string sesuai DB Anda
+    ];
+
+    protected $casts = [
+        'starts_at' => 'datetime',
+        'ends_at' => 'datetime',
+    ];
 
 
     public function division()
     {
         return $this->belongsTo(Division::class);
     }
+
+
 
 }

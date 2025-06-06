@@ -7,6 +7,7 @@ use App\Filament\Resources\EmployeeResource\Pages;
 use App\Models\Employee;
 use App\Models\User;
 use App\Models\Division;
+// use Filament\Forms\Components\Builder; // Remove this unused import
 use Filament\Forms\Components\Section;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Form;
@@ -31,8 +32,15 @@ class EmployeeResource extends Resource
     protected static ?string $modelLabel = 'Pegawai'; // Label untuk satu record
     protected static ?string $pluralModelLabel = 'Daftar Pegawai'; // Label untuk banyak record
     protected static ?string $navigationLabel = 'Pegawai'; // <<< UBAH INI
-    
+
     protected static ?string $slug = 'pegawai';
+
+
+    public static function getEloquentQuery(): \Illuminate\Database\Eloquent\Builder
+    {
+        return User::query()->withTrashed(); // Atau Employee::query()->withTrashed()
+    }
+
 
     public static function form(Form $form): Form
     {
@@ -106,9 +114,9 @@ class EmployeeResource extends Resource
                             ->placeholder('Jl. Sukajadi No. 123, Jakarta')
                             ->maxLength(255)
                             ->required(),
-                         Select::make('divisi_id')
-                        ->relationship('division', 'name')
-                        ->required(),
+                        Select::make('divisi_id')
+                            ->relationship('division', 'name')
+                            ->required(),
                     ])
             ]);
     }
@@ -136,6 +144,15 @@ class EmployeeResource extends Resource
                 TextColumn::make('division.name')
                     ->searchable()
                     ->sortable(),
+                TextColumn::make('status')
+                    ->label('Status')
+                    ->formatStateUsing(fn($record) => $record->trashed() ? 'Nonaktif' : 'Aktif')
+                    ->badge()
+                    ->colors([
+                        'gray' => fn($record) => $record->trashed(),
+                        'success' => fn($record) => !$record->trashed(),
+                    ]),
+
             ])
             ->filters([
                 //
@@ -143,6 +160,13 @@ class EmployeeResource extends Resource
             ->actions([
                 Tables\Actions\EditAction::make(),
                 Tables\Actions\DeleteAction::make(),
+                Tables\Actions\Action::make('restore')
+                    ->label('Pulihkan')
+                    ->icon('heroicon-o-arrow-path')
+                    ->color('info')
+                    ->visible(fn($record) => $record->trashed())
+                    ->action(fn($record) => $record->restore()),
+
             ])
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([

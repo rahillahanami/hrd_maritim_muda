@@ -1,0 +1,11 @@
+<?php
+
+if (! function_exists('convertIndonesianMonthToEnglish')) {
+    function convertIndonesianMonthToEnglish(string $dateString): string
+    {
+        $indonesianMonths = ['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
+        $englishMonths = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+
+        return str_replace($indonesianMonths, $englishMonths, $dateString);
+    }
+}

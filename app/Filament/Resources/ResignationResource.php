@@ -20,7 +20,7 @@ class ResignationResource extends Resource
 {
     protected static ?string $model = Resignation::class;
 
-     protected static ?string $navigationIcon = 'heroicon-o-user-minus'; // Sudah benar
+    protected static ?string $navigationIcon = 'heroicon-o-user-minus'; // Sudah benar
     protected static ?string $navigationGroup = 'Manajemen HRD'; // Sudah benar
     protected static ?int $navigationSort = 1; // Urutan pertama di HR Management
 
@@ -90,7 +90,6 @@ class ResignationResource extends Resource
         // is_owner hanya relevan saat edit
         $isOwner = $record && $record->user_id === $currentUser->id;
 
-        
 
         return $form
             ->schema([
@@ -98,16 +97,18 @@ class ResignationResource extends Resource
                     ->schema([
                         // Field untuk Karyawan yang Mengajukan (user_id)
                         Forms\Components\Select::make('user_id')
-                            ->disabled() // Selalu disabled karena otomatis terisi atau tidak boleh diubah
+                            ->disabled()
+                            ->dehydrated(fn() => true)
                             ->relationship('user', 'name')
-                            ->required()
-                            ->default(fn() => Filament::auth()->user()?->id),
+                            ->default(fn() => Filament::auth()->user()?->id)
+                            ->required(),
 
-                        // Field untuk Tanggal Pengajuan
                         Forms\Components\DatePicker::make('submission_date')
-                            ->required()
-                            ->disabled() // Selalu disabled karena otomatis terisi
-                            ->default(now()),
+                            ->disabled()
+                            ->dehydrated(fn() => true)
+                            ->default(now())
+                            ->required(),
+
                     ]),
 
                 // Field untuk Tanggal Efektif Resign
@@ -123,9 +124,9 @@ class ResignationResource extends Resource
                         $isCreating ? false : (
                             // Jika mode EDIT dan user BUKAN ADMIN
                             !$isAdmin && (
-                                    // Dan user adalah pemilik, tapi status BUKAN pending
+                                // Dan user adalah pemilik, tapi status BUKAN pending
                                 ($isOwner && $recordStatus !== 'Pending') ||
-                                    // Atau user BUKAN pemilik
+                                // Atau user BUKAN pemilik
                                 (!$isOwner)
                             )
                         )
@@ -144,9 +145,9 @@ class ResignationResource extends Resource
                         $isCreating ? false : (
                             // Jika mode EDIT dan user BUKAN ADMIN
                             !$isAdmin && (
-                                    // Dan user adalah pemilik, tapi status BUKAN pending
+                                // Dan user adalah pemilik, tapi status BUKAN pending
                                 ($isOwner && $recordStatus !== 'Pending') ||
-                                    // Atau user BUKAN pemilik
+                                // Atau user BUKAN pemilik
                                 (!$isOwner)
                             )
                         )
@@ -190,7 +191,7 @@ class ResignationResource extends Resource
     /**
      * Mendefinisikan skema tabel untuk menampilkan daftar pengajuan resign.
      */
-    
+
     public static function table(Table $table): Table
     {
 
@@ -215,8 +216,7 @@ class ResignationResource extends Resource
                 Tables\Columns\TextColumn::make('reason')
                     ->label('Alasan Resign')
                     ->words(10)
-                    ->tooltip(fn(?string $state): ?string => $state) // <<< UBAH BARIS INI
-                    ->toggleable(),
+                    ->tooltip(fn(?string $state): ?string => $state),
 
 
                 Tables\Columns\BadgeColumn::make('status') // Tampilan status dengan badge
@@ -234,10 +234,12 @@ class ResignationResource extends Resource
                     ->visible(fn() => $isAdmin), // Sembunyikan secara default
                 Tables\Columns\TextColumn::make('notes')
                     ->label('Catatan')
-                    ->words(10)
-                    ->tooltip(fn(?string $state): ?string => $state) // <<< UBAH BARIS INI
-                    ->toggleable(isToggledHiddenByDefault: true)
+                    ->limit(50)
+                    ->wrap()
+                    ->toggleable()
                     ->visible(fn() => $isAdmin),
+                    // ->modalHeading('Catatan Internal')
+                    // ->modalContent(fn(Resignation $record) => $record->notes),
                 Tables\Columns\TextColumn::make('created_at')
                     ->dateTime()
                     ->sortable()
@@ -287,7 +289,7 @@ class ResignationResource extends Resource
                     ->visible(
                         fn(Resignation $record): bool =>
                         $isAdmin || // Admin bisa edit semua
-                        ($record->user_id === $currentUser->id && $record->status === 'Pending') // Owner bisa edit jika Pending
+                            ($record->user_id === $currentUser->id && $record->status === 'Pending') // Owner bisa edit jika Pending
                     ),
                 Tables\Actions\DeleteAction::make()
                     ->visible(fn() => $isAdmin), // Hanya Admin yang bisa delete (tetap)
@@ -304,8 +306,8 @@ class ResignationResource extends Resource
                             'status' => 'Approved',
                             'approved_by_user_id' => $currentUser->id,
                         ]);
-                        Notification::make() // Menggunakan Notification Facade
-                            ->title('Pengajuan Resign telah disetujui.')
+                        Notification::make()
+                            ->title("Pengajuan resign oleh {$record->user->name} telah disetujui.")
                             ->success()
                             ->send();
                     }),
@@ -322,8 +324,9 @@ class ResignationResource extends Resource
                             'status' => 'Rejected',
                             'approved_by_user_id' => $currentUser->id,
                         ]);
-                        Notification::make() // Menggunakan Notification Facade
-                            ->title('Pengajuan Resign telah ditolak.')
+
+                        Notification::make()
+                            ->title("Pengajuan resign oleh {$record->user->name} telah ditolak.")
                             ->success()
                             ->send();
                     }),
@@ -340,7 +343,7 @@ class ResignationResource extends Resource
                             'status' => 'Cancelled',
                         ]);
                         // Filament::notify('info', 'Pengajuan Resign Anda telah dibatalkan.');
-                        Notification::make() ->title('Pengajuan Resign Anda telah dibatalkan.')
+                        Notification::make()->title('Pengajuan Resign Anda telah dibatalkan.')
                             ->success()
                             ->send();
                     }),
