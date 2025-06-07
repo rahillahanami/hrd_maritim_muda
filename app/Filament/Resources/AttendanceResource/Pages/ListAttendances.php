@@ -62,39 +62,40 @@ class ListAttendances extends ListRecords
                 ->icon('heroicon-o-arrow-left-on-rectangle')
                 ->requiresConfirmation()
                 ->action(function () use ($employeeId) {
-                    $checkInTime = Carbon::now(); // Waktu check-in aktual
+                    $checkInTime = now(); // Waktu check-in aktual
+                    $baseCheckIn = now()->setHour(8)->setMinute(0)->setSecond(0);
 
-                    $baseCheckIn = Carbon::today()->setHour(self::STANDARD_CHECK_IN_HOUR)->setMinute(self::STANDARD_CHECK_IN_MINUTE)->setSecond(0);
-
+                    // Hitung keterlambatan
                     $earlyMinutes = 0;
                     $lateMinutes = 0;
 
-                    // Gunakan copy() untuk menghindari modifikasi objek standardCheckIn
-                    $standardCheckInEarlyBound = (clone $baseCheckIn)->subMinutes(self::EARLY_TOLERANCE_MINUTES);
-                    $standardCheckInLateBound = (clone $baseCheckIn)->addMinutes(self::LATE_TOLERANCE_MINUTES);
-
-                    // --- LOGIKA PERHITUNGAN BARU ---
-                    if ($checkInTime->lessThan($standardCheckInEarlyBound)) {
+                    if ($checkInTime->lessThan($baseCheckIn)) {
+                        // Jika check-in lebih awal
                         $earlyMinutes = $checkInTime->diffInMinutes($baseCheckIn);
-                    } elseif ($checkInTime->greaterThan($standardCheckInLateBound)) {
+                    } elseif ($checkInTime->greaterThan($baseCheckIn)) {
+                        // Jika check-in terlambat
                         $lateMinutes = $checkInTime->diffInMinutes($baseCheckIn);
                     }
 
-                    // Pastikan nilai tidak negatif (tetap jaga ini sebagai safety net)
+                    // Pastikan nilai tidak negatif
                     $earlyMinutes = max(0, $earlyMinutes);
                     $lateMinutes = max(0, $lateMinutes);
 
+                    $times = Attendance::calculateAttendanceTimes($checkInTime, $baseCheckIn);
+
+                    // Simpan data ke database
                     Attendance::create([
                         'employee_id' => $employeeId,
-                        'date' => Carbon::today(),
+                        'date' => now()->toDateString(),
                         'check_in' => $checkInTime,
                         'early_minutes' => $earlyMinutes,
                         'late_minutes' => $lateMinutes,
                     ]);
 
+
                     Notification::make()
                         ->title('Berhasil Check In!')
-                        ->body("Anda telah berhasil Check In. Awal: {$earlyMinutes} menit, Terlambat: {$lateMinutes} menit.")
+                        ->body("Anda telah berhasil Check In. Awal: {$times['early_minutes']} menit, Terlambat: {$times['late_minutes']} menit.")
                         ->success()
                         ->send();
                 });

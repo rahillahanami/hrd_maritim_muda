@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Carbon;
 
 class Attendance extends Model
 {
@@ -33,5 +34,22 @@ class Attendance extends Model
     public function employee()
     {
         return $this->belongsTo(Employee::class)->withTrashed();
+    }
+
+    public static function calculateAttendanceTimes($checkInTime, $baseCheckIn)
+    {
+        $earlyMinutes = 0;
+        $lateMinutes = 0;
+
+        if ($checkInTime->lessThan($baseCheckIn)) {
+            $earlyMinutes = $checkInTime->diffInMinutes($baseCheckIn);
+        } elseif ($checkInTime->greaterThan($baseCheckIn)) {
+            $lateMinutes = $checkInTime->diffInMinutes($baseCheckIn);
+        }
+
+        return [
+            'early_minutes' => max(0, $earlyMinutes),
+            'late_minutes' => max(0, $lateMinutes),
+        ];
     }
 }

@@ -11,28 +11,36 @@ class CreateLeave extends CreateRecord
 {
     protected static string $resource = LeaveResource::class;
 
-    protected function getFormActions(): array
+    // protected function getFormActions(): array
+    // {
+
+    //     $actions = [
+    //         Actions\CreateAction::make()
+    //             ->url($this->getResource()::getUrl('index')), // Alihkan ke halaman daftar setelah membuat
+    //     ];
+
+    //     // Tidak ada tombol "Buat & buat lainnya" yang akan ditambahkan
+
+    //     // Tombol "Batal"
+    //     $actions[] = Actions\Action::make('cancel')
+    //         ->label('Batal')
+    //         ->color('gray')
+    //         ->url($this->getResource()::getUrl('index')); // Kembali ke halaman daftar
+
+    //     return $actions;
+    // }
+
+    protected function mutateFormDataBeforeCreate(array $data): array
     {
-        // Karena hanya user biasa yang bisa create Leave (sesuai canCreate()),
-        // dan mereka tidak butuh "Buat & buat lainnya", kita bisa langsung definisikan aksinya.
-        // Tidak perlu cek $isAdmin di sini.
+        $currentUser = Filament::auth()->user();
 
-        $actions = [
-            Actions\CreateAction::make()
-                ->url($this->getResource()::getUrl('index')), // Alihkan ke halaman daftar setelah membuat
-        ];
+        // Tambahkan user_id ke data yang akan disimpan
+        $data['user_id'] = $currentUser->id;
 
-        // Tidak ada tombol "Buat & buat lainnya" yang akan ditambahkan
+        // Opsional: Anda bisa menambahkan logika lain di sini jika perlu
 
-        // Tombol "Batal"
-        $actions[] = Actions\Action::make('cancel')
-            ->label('Batal')
-            ->color('gray')
-            ->url($this->getResource()::getUrl('index')); // Kembali ke halaman daftar
-
-        return $actions;
+        return $data;
     }
-
     // Opsional: Jika Anda tidak ingin redirect ke halaman edit setelah create
     protected function getRedirectUrl(): string
     {

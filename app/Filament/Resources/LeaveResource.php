@@ -39,30 +39,30 @@ class LeaveResource extends Resource
     }
 
     // --- Query Scoping ---
-    
-public static function getEloquentQuery(): Builder
-{
-    $currentUser = Filament::auth()->user();
 
-    if (!$currentUser) {
-        return parent::getEloquentQuery()->whereRaw('1 = 0')->withoutGlobalScopes([
-            SoftDeletingScope::class,
-        ]);
+    public static function getEloquentQuery(): Builder
+    {
+        $currentUser = Filament::auth()->user();
+
+        if (!$currentUser) {
+            return parent::getEloquentQuery()->whereRaw('1 = 0')->withoutGlobalScopes([
+                SoftDeletingScope::class,
+            ]);
+        }
+
+        if (static::isCurrentUserAdmin()) {
+            return parent::getEloquentQuery()->withoutGlobalScopes([
+                SoftDeletingScope::class,
+            ]);
+        }
+
+        // Sekarang kita filter berdasarkan user_id langsung
+        return parent::getEloquentQuery()
+            ->where('user_id', $currentUser->id)
+            ->withoutGlobalScopes([
+                SoftDeletingScope::class,
+            ]);
     }
-
-    if (static::isCurrentUserAdmin()) {
-        return parent::getEloquentQuery()->withoutGlobalScopes([
-            SoftDeletingScope::class,
-        ]);
-    }
-
-    // Sekarang kita filter berdasarkan user_id langsung
-    return parent::getEloquentQuery()
-        ->where('user_id', $currentUser->id) 
-        ->withoutGlobalScopes([
-            SoftDeletingScope::class,
-        ]);
-}
 
     // --- Aturan Create ---
     public static function canCreate(): bool
@@ -77,15 +77,15 @@ public static function getEloquentQuery(): Builder
     public static function form(Form $form): Form
     {
 
-    $currentUser = Filament::auth()->user();
-    $isAdmin = static::isCurrentUserAdmin();
+        $currentUser = Filament::auth()->user();
+        $isAdmin = static::isCurrentUserAdmin();
 
-    $record = $form->getRecord();
-    $recordStatus = $record?->status;
+        $record = $form->getRecord();
+        $recordStatus = $record?->status;
 
-    $isCreating = $record === null;
-    // isOwner sekarang merujuk ke user_id
-    $isOwner = $record && $record->user_id === $currentUser->id; // <<< UBAH INI
+        $isCreating = $record === null;
+        // isOwner sekarang merujuk ke user_id
+        $isOwner = $record && $record->user_id === $currentUser->id; // <<< UBAH INI
 
         return $form
             ->schema([
@@ -96,7 +96,7 @@ public static function getEloquentQuery(): Builder
                             ->disabled() // Selalu disabled
                             ->relationship('user', 'name')
                             ->required()
-                             ->default(fn() => $currentUser->id),
+                            ->default(fn() => $currentUser->id),
 
                         // Field untuk Tipe Cuti
                         Forms\Components\Select::make('type')
@@ -109,7 +109,8 @@ public static function getEloquentQuery(): Builder
                             ])
                             ->required()
                             ->placeholder('Pilih Tipe Cuti')
-                            ->disabled(fn () =>
+                            ->disabled(
+                                fn() =>
                                 // Jika mode CREATE, field ini ENABLED (false = tidak disabled)
                                 $isCreating ? false : (
                                     // Jika mode EDIT dan user BUKAN ADMIN
@@ -131,7 +132,8 @@ public static function getEloquentQuery(): Builder
                             ->required()
                             ->afterOrEqual(now())
                             ->placeholder('Tanggal Mulai Cuti')
-                            ->disabled(fn () =>
+                            ->disabled(
+                                fn() =>
                                 $isCreating ? false : (
                                     !$isAdmin && (
                                         ($isOwner && $recordStatus !== 'pending') ||
@@ -145,7 +147,8 @@ public static function getEloquentQuery(): Builder
                             ->required()
                             ->afterOrEqual('start_date')
                             ->placeholder('Tanggal Selesai Cuti')
-                            ->disabled(fn () =>
+                            ->disabled(
+                                fn() =>
                                 $isCreating ? false : (
                                     !$isAdmin && (
                                         ($isOwner && $recordStatus !== 'pending') ||
@@ -161,7 +164,8 @@ public static function getEloquentQuery(): Builder
                     ->rows(4)
                     ->maxLength(65535)
                     ->placeholder('Jelaskan alasan pengajuan cuti Anda.')
-                    ->disabled(fn () =>
+                    ->disabled(
+                        fn() =>
                         $isCreating ? false : (
                             !$isAdmin && (
                                 ($isOwner && $recordStatus !== 'pending') ||
@@ -181,19 +185,19 @@ public static function getEloquentQuery(): Builder
                     ->required()
                     ->default('pending')
                     ->columnSpanFull()
-                    ->disabled(fn () => !$isAdmin)
-                    ->visible(fn () => $isAdmin), // Hanya Admin yang bisa mengubah status
+                    ->disabled(fn() => !$isAdmin)
+                    ->visible(fn() => $isAdmin), // Hanya Admin yang bisa mengubah status
 
                 // Field untuk User yang Menyetujui/Menolak
                 Forms\Components\Select::make('approved_by_user_id')
-                    ->disabled(fn () => !$isAdmin) // Hanya Admin yang bisa memilih penyetuju
+                    ->disabled(fn() => !$isAdmin) // Hanya Admin yang bisa memilih penyetuju
                     ->relationship('approvedBy', 'name')
                     ->label('Disetujui/Ditolak Oleh')
                     ->nullable()
                     ->placeholder('Pilih Penyetuju/Penolak')
                     ->searchable()
                     ->preload()
-                    ->visible(fn () => $isAdmin),
+                    ->visible(fn() => $isAdmin),
             ]);
     }
 
@@ -211,7 +215,7 @@ public static function getEloquentQuery(): Builder
                     ->label('Karyawan')
                     ->searchable()
                     ->sortable(),
-                    // ->visible(fn () => $isAdmin), // Hanya Admin yang bisa melihat kolom ini
+                // ->visible(fn () => $isAdmin), // Hanya Admin yang bisa melihat kolom ini
                 Tables\Columns\TextColumn::make('type')
                     ->label('Tipe Cuti')
                     ->searchable()
@@ -241,8 +245,8 @@ public static function getEloquentQuery(): Builder
                     ->label('Disetujui Oleh')
                     ->sortable()
                     ->toggleable(isToggledHiddenByDefault: true)
-                    ->visible(fn () => $isAdmin),
-               
+                    ->visible(fn() => $isAdmin),
+
                 Tables\Columns\TextColumn::make('created_at')
                     ->dateTime()
                     ->sortable()
@@ -255,7 +259,7 @@ public static function getEloquentQuery(): Builder
                     ->label('Filter Karyawan')
                     ->placeholder('Semua Karyawan')
                     ->searchable()
-                    ->visible(fn () => $isAdmin),
+                    ->visible(fn() => $isAdmin),
 
                 // Filter berdasarkan Tipe Cuti
                 Tables\Filters\SelectFilter::make('type')
@@ -288,18 +292,19 @@ public static function getEloquentQuery(): Builder
                     ])
                     ->query(function (Builder $query, array $data): Builder {
                         return $query
-                            ->when($data['from'], fn (Builder $query, $date) => $query->whereDate('created_at', '>=', $date)) // Menggunakan created_at sebagai submission_date
-                            ->when($data['until'], fn (Builder $query, $date) => $query->whereDate('created_at', '<=', $date));
+                            ->when($data['from'], fn(Builder $query, $date) => $query->whereDate('created_at', '>=', $date)) // Menggunakan created_at sebagai submission_date
+                            ->when($data['until'], fn(Builder $query, $date) => $query->whereDate('created_at', '<=', $date));
                     }),
             ])
             ->actions([
                 Tables\Actions\EditAction::make()
-                    ->visible(fn (Leave $record): bool =>
+                    ->visible(
+                        fn(Leave $record): bool =>
                         $isAdmin || // Admin bisa edit semua
-                        ($record->user_id === $currentUser->id && $record->status === 'pending') // Pemilik bisa edit jika Pending
+                            ($record->user_id === $currentUser->id && $record->status === 'pending') // Pemilik bisa edit jika Pending
                     ),
                 Tables\Actions\DeleteAction::make()
-                    ->visible(fn () => $isAdmin), // Hanya Admin yang bisa delete
+                    ->visible(fn() => $isAdmin), // Hanya Admin yang bisa delete
 
                 // *** AKSI KUSTOM BARU: APPROVE ***
                 Tables\Actions\Action::make('approve')
@@ -307,7 +312,7 @@ public static function getEloquentQuery(): Builder
                     ->color('success')
                     ->icon('heroicon-o-check-circle')
                     ->requiresConfirmation()
-                    ->visible(fn (Leave $record): bool => $isAdmin && $record->status === 'pending') // Hanya Admin & status Pending
+                    ->visible(fn(Leave $record): bool => $isAdmin && $record->status === 'pending') // Hanya Admin & status Pending
                     ->action(function (Leave $record) use ($currentUser) {
                         $record->update([
                             'status' => 'approved',
@@ -325,7 +330,7 @@ public static function getEloquentQuery(): Builder
                     ->color('danger')
                     ->icon('heroicon-o-x-circle')
                     ->requiresConfirmation()
-                    ->visible(fn (Leave $record): bool => $isAdmin && $record->status === 'pending') // Hanya Admin & status Pending
+                    ->visible(fn(Leave $record): bool => $isAdmin && $record->status === 'pending') // Hanya Admin & status Pending
                     ->action(function (Leave $record) use ($currentUser) {
                         $record->update([
                             'status' => 'rejected',
@@ -343,7 +348,7 @@ public static function getEloquentQuery(): Builder
                     ->color('gray')
                     ->icon('heroicon-o-arrow-uturn-left')
                     ->requiresConfirmation()
-                     ->visible(fn (Leave $record): bool => $record->user_id === $currentUser->id && $record->status === 'pending') // Hanya pemilik & status Pending
+                    ->visible(fn(Leave $record): bool => $record->user_id === $currentUser->id && $record->status === 'pending') // Hanya pemilik & status Pending
                     ->action(function (Leave $record) {
                         $record->update([
                             'status' => 'cancelled',
@@ -357,7 +362,7 @@ public static function getEloquentQuery(): Builder
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([
                     Tables\Actions\DeleteBulkAction::make()
-                        ->visible(fn () => $isAdmin),
+                        ->visible(fn() => $isAdmin),
                 ]),
             ]);
     }
@@ -386,16 +391,23 @@ public static function getEloquentQuery(): Builder
 
     // *** Tambahkan method ini: Mengisi employee_id secara otomatis sebelum data dibuat. ***
     // Mutate FormData Before Create
-    protected static function mutateFormDataBeforeCreate(array $data): array
-    {
-    $currentUser = Filament::auth()->user();
-    $data['user_id'] = $currentUser ? $currentUser->id : null; // <<< UBAH DARI employee_id
+    // protected static function mutateFormDataBeforeCreate(array $data): array
+    // {
+    // $currentUser = Filament::auth()->user();
+    // $data['user_id'] = $currentUser ? $currentUser->id : null; // <<< UBAH DARI employee_id
 
-    // Pastikan status defaultnya 'pending'
-    if (!isset($data['status'])) {
-        $data['status'] = 'pending';
-    }
+    // // Pastikan status defaultnya 'pending'
+    // if (!isset($data['status'])) {
+    //     $data['status'] = 'pending';
+    // }
 
-    return $data;
-    }
+    // return $data;
+
+    // protected function mutateFormDataBeforeCreate(array $data): array
+    // {
+    //     $data['user_id'] = auth()->id();
+    //     return $data;
+    // }
+
+    // }
 }
