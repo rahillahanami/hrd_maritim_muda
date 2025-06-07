@@ -10,8 +10,6 @@ class Attendance extends Model
 {
     use HasFactory;
 
-    protected $guarded = [];
-
     protected $fillable = [
         'employee_id',
         'date',          // <<< Sesuaikan

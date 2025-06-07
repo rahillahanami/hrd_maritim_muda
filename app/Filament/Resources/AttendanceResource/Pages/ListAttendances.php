@@ -1,5 +1,6 @@
 <?php
 
+// 1. UPDATED ListAttendances.php - User Check-in Logic
 namespace App\Filament\Resources\AttendanceResource\Pages;
 
 use App\Filament\Resources\AttendanceResource;
@@ -10,43 +11,38 @@ use App\Models\Attendance;
 use App\Models\User;
 use App\Models\Employee;
 use Illuminate\Support\Carbon;
-use Filament\Notifications\Notification; // <<< PASTIKAN INI ADA UNTUK NOTIFIKASI
+use Filament\Notifications\Notification;
+use Illuminate\Container\Attributes\Log;
 
 class ListAttendances extends ListRecords
 {
     protected static string $resource = AttendanceResource::class;
 
-    // *** KONSTANTA UNTUK JAM KERJA STANDAR & TOLERANSI ***
-    const STANDARD_CHECK_IN_HOUR = 8; // Jam masuk standar (08:00)
-    const STANDARD_CHECK_IN_MINUTE = 0; // Menit masuk standar (08:00)
-    const LATE_TOLERANCE_MINUTES = 5; // Toleransi keterlambatan dalam menit (misal: 5 menit)
-    const EARLY_TOLERANCE_MINUTES = 0; // Toleransi datang terlalu cepat (0 berarti tidak ada toleransi)
-
+    // *** CONSTANTS FOR STANDARD WORK HOURS & TOLERANCE ***
+    const STANDARD_CHECK_IN_HOUR = 8;
+    const STANDARD_CHECK_IN_MINUTE = 0;
+    const LATE_TOLERANCE_MINUTES = 5;
+    const EARLY_TOLERANCE_MINUTES = 0;
 
     protected function getHeaderActions(): array
     {
         $currentUser = Filament::auth()->user();
-        // Peran admin disesuaikan dengan 'super_admin' dari Filament Shield
         $isAdmin = $currentUser && $currentUser->hasRole('super_admin');
 
-        // Jika user adalah admin, mereka bisa membuat record attendance manual
         if ($isAdmin) {
             return [
                 Actions\CreateAction::make(),
             ];
         }
 
-        // --- Logika untuk user biasa (non-admin) ---
-
+        // --- Logic for regular users (non-admin) ---
         $employeeId = null;
-        // Pastikan user punya relasi ke Employee (employee()) di model User
         if ($currentUser && $currentUser->employee) {
             $employeeId = $currentUser->employee->id;
         }
 
-        // Cari attendance hari ini untuk employee yang login
         $todayAttendance = null;
-        if ($employeeId) { // Hanya cari jika employeeId ditemukan
+        if ($employeeId) {
             $todayAttendance = Attendance::where('employee_id', $employeeId)
                 ->whereDate('date', Carbon::today())
                 ->first();
@@ -54,7 +50,7 @@ class ListAttendances extends ListRecords
 
         $actions = [];
 
-        // Tombol Check In
+        // Check In Button
         if ($employeeId && !$todayAttendance) {
             $actions[] = Actions\Action::make('check_in')
                 ->label('Check In')
@@ -62,47 +58,40 @@ class ListAttendances extends ListRecords
                 ->icon('heroicon-o-arrow-left-on-rectangle')
                 ->requiresConfirmation()
                 ->action(function () use ($employeeId) {
-                    $checkInTime = now(); // Waktu check-in aktual
-                    $baseCheckIn = now()->setHour(8)->setMinute(0)->setSecond(0);
+                    $checkInTime = now();
 
-                    // Hitung keterlambatan
-                    $earlyMinutes = 0;
-                    $lateMinutes = 0;
+                    // FIXED: Create base check-in time using the SAME DATE as check-in
+                    $baseCheckIn = $checkInTime->copy() // Use copy() to avoid modifying original
+                        ->setHour(self::STANDARD_CHECK_IN_HOUR)
+                        ->setMinute(self::STANDARD_CHECK_IN_MINUTE)
+                        ->setSecond(0);
 
-                    if ($checkInTime->lessThan($baseCheckIn)) {
-                        // Jika check-in lebih awal
-                        $earlyMinutes = $checkInTime->diffInMinutes($baseCheckIn);
-                    } elseif ($checkInTime->greaterThan($baseCheckIn)) {
-                        // Jika check-in terlambat
-                        $lateMinutes = $checkInTime->diffInMinutes($baseCheckIn);
-                    }
 
-                    // Pastikan nilai tidak negatif
-                    $earlyMinutes = max(0, $earlyMinutes);
-                    $lateMinutes = max(0, $lateMinutes);
+                    // Calculate late/early minutes using the centralized method
+                    $times = $this->calculateAttendanceTimes($checkInTime, $baseCheckIn);
 
-                    $times = Attendance::calculateAttendanceTimes($checkInTime, $baseCheckIn);
-
-                    // Simpan data ke database
+                    // Save to database
                     Attendance::create([
                         'employee_id' => $employeeId,
                         'date' => now()->toDateString(),
                         'check_in' => $checkInTime,
-                        'early_minutes' => $earlyMinutes,
-                        'late_minutes' => $lateMinutes,
+                        'early_minutes' => $times['early_minutes'],
+                        'late_minutes' => $times['late_minutes'],
                     ]);
 
+                    // Show notification with status
+                    $status = $times['late_minutes'] > 0 ? 'TERLAMBAT' : ($times['early_minutes'] > 0 ? 'LEBIH AWAL' : 'TEPAT WAKTU');
 
                     Notification::make()
                         ->title('Berhasil Check In!')
-                        ->body("Anda telah berhasil Check In. Awal: {$times['early_minutes']} menit, Terlambat: {$times['late_minutes']} menit.")
+                        ->body("Status: {$status}. Awal: {$times['early_minutes']} menit, Terlambat: {$times['late_minutes']} menit.")
                         ->success()
                         ->send();
                 });
         }
 
-        // Tombol Check Out
-        if ($todayAttendance && !$todayAttendance->check_out) { // Muncul jika sudah check-in dan belum check-out
+        // Check Out Button
+        if ($todayAttendance && !$todayAttendance->check_out) {
             $actions[] = Actions\Action::make('check_out')
                 ->label('Check Out')
                 ->color('danger')
@@ -110,18 +99,61 @@ class ListAttendances extends ListRecords
                 ->requiresConfirmation()
                 ->action(function () use ($todayAttendance) {
                     $todayAttendance->update([
-                        'check_out' => Carbon::now(), // Kolom di DB adalah 'check_out'
-                        // Jika ada kolom status di tabel attendance, atur juga di sini. Contoh: 'status' => 'Completed'
+                        'check_out' => Carbon::now(),
                     ]);
 
-                    Notification::make() // Menggunakan Notifikasi Filament
+                    Notification::make()
                         ->title('Berhasil Check Out!')
                         ->body('Anda telah berhasil melakukan Check Out untuk hari ini.')
-                        ->success() // Atau info jika notifnya tidak selalu "sukses"
+                        ->success()
                         ->send();
                 });
         }
 
         return $actions;
+    }
+
+    /**
+     * Calculate attendance times (early/late minutes)
+     */
+    private function calculateAttendanceTimes($checkInTime, $baseCheckIn)
+    {
+        // FIXED: Calculate difference in seconds, then convert to minutes
+        // Positive = late (check-in after base), Negative = early (check-in before base)
+        $diffSeconds = $checkInTime->timestamp - $baseCheckIn->timestamp;
+        $diffMinutes = $diffSeconds / 60;
+
+        // Alternative approach that's more explicit:
+        // $diffMinutes = $checkInTime->timestamp - $baseCheckIn->timestamp;
+        // $diffMinutes = $diffMinutes / 60; // Convert seconds to minutes
+
+        // // DEBUG: Log the calculation
+        // \Log::info('Calculate Times Debug:', [
+        //     'check_in' => $checkInTime->format('H:i:s'),
+        //     'base_check_in' => $baseCheckIn->format('H:i:s'),
+        //     'signed_diff' => $diffMinutes,
+        //     'is_late' => $diffMinutes > 0,
+        // ]);
+
+
+        // Remove this dd() after testing
+        
+        $earlyMinutes = 0;
+        $lateMinutes = 0;
+        
+        if ($diffMinutes < 0) {
+            // Negative difference means early (check-in before base time)
+            $earlyMinutes = abs($diffMinutes);
+        } elseif ($diffMinutes > 0) {
+            // Positive difference means late (check-in after base time)
+            $lateMinutes = $diffMinutes;
+        }
+        // If $diffMinutes == 0, then exactly on time (both stay 0)
+        
+        return [
+            'early_minutes' => (int) round($earlyMinutes),
+            'late_minutes' => (int) round($lateMinutes),
+        ];
+        dd("Check-in: {$checkInTime->format('H:i:s')}, Base: {$baseCheckIn->format('H:i:s')}, Diff: {$diffMinutes} minutes, Is Late: " . ($diffMinutes > 0 ? 'Yes' : 'No'));
     }
 }
