@@ -31,7 +31,7 @@ class ResignationResource extends Resource
 
 
 
-    protected static function isCurrentUserAdmin(): bool
+    public static function isCurrentUserAdmin(): bool
     {
         $user = Filament::auth()->user();
         return $user && $user->hasRole('super_admin'); // Sesuaikan 'admin' dengan nama peran admin Anda

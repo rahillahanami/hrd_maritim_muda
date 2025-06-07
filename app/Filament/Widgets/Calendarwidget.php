@@ -21,6 +21,10 @@ use Saade\FilamentFullCalendar\Widgets\FullCalendarWidget;
 
 class Calendarwidget extends FullCalendarWidget
 {
+
+    protected static ?int $sort = 5; // Opsional
+    // // protected int | string | array $columnSpan = ; // <<< TAMBAHKAN INI
+
     public Model | string | null $model = Event::class;
 
     protected function isCurrentUserAdmin(): bool

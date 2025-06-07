@@ -2,6 +2,10 @@
 
 namespace App\Providers\Filament;
 
+use App\Filament\Widgets\Calendarwidget;
+use App\Filament\Widgets\MyAttendanceStatus;
+use App\Filament\Widgets\MyDivisionWorkPlansOverview;
+use App\Filament\Widgets\StatsDashboard;
 use Filament\Http\Middleware\Authenticate;
 use Filament\Http\Middleware\AuthenticateSession;
 use Filament\Http\Middleware\DisableBladeIconComponents;
@@ -19,6 +23,7 @@ use Illuminate\Session\Middleware\StartSession;
 use Illuminate\View\Middleware\ShareErrorsFromSession;
 use BezhanSalleh\FilamentShield\FilamentShieldPlugin;
 use Filament\Navigation\NavigationGroup;
+use Filament\Widgets\Widget;
 use Saade\FilamentFullCalendar\FilamentFullCalendarPlugin;
 
 class AdminPanelProvider extends PanelProvider
@@ -41,8 +46,15 @@ class AdminPanelProvider extends PanelProvider
             ])
             ->discoverWidgets(in: app_path('Filament/Widgets'), for: 'App\\Filament\\Widgets')
             ->widgets([
-                // Widgets\AccountWidget::class,
-                // Widgets\FilamentInfoWidget::class,
+                // ActiveEmployeesOverview::class,
+                // PendingResignationsOverview::class,
+                // PendingLeavesOverview::class,
+                // StatsDashboard::class, // Removed because the class does not exist
+                // Calendarwidget::class, // Pastikan ini ada
+                StatsDashboard::class,
+                MyAttendanceStatus::class,
+                MyDivisionWorkPlansOverview::class,
+                Calendarwidget::class,
             ])
             ->middleware([
                 EncryptCookies::class,

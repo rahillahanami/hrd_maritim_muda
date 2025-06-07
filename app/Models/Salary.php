@@ -23,7 +23,7 @@ class Salary extends Model
     public function employee()
     {
         // Asumsi 'employee_id' di tabel salaries adalah foreign key ke 'employees.id'
-        return $this->belongsTo(Employee::class);
+        return $this->belongsTo(Employee::class)->withTrashed();
     }
 
     /**

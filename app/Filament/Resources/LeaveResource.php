@@ -32,7 +32,7 @@ class LeaveResource extends Resource
     protected static ?string $slug = 'cuti'; // Slug untuk URL
 
     // *** Helper methods (copy dari ResignationResource) ***
-    protected static function isCurrentUserAdmin(): bool
+    public static function isCurrentUserAdmin(): bool
     {
         $user = Filament::auth()->user();
         return $user && $user->hasRole('super_admin'); // Sesuaikan 'super_admin' dengan peran admin Anda
