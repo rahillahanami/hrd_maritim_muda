@@ -139,6 +139,7 @@ class DocumentResource extends Resource
                     ->disabled(fn($operation) => $operation === 'edit' && !$isAdmin && !$isEditingOwnDivisionDocument),
 
                 Forms\Components\Select::make('category')
+                    ->label('Kategori')
                     ->options([
                         'Forms & Templates' => 'Forms & Templates',
                         'Company Policies' => 'Company Policies',
@@ -151,6 +152,7 @@ class DocumentResource extends Resource
 
                 // Field untuk divisi terkait (division_id)
                 Forms\Components\Select::make('division_id')
+                    ->label('Divisi')
                     ->disabled(
                         fn($operation) =>
                         $operation === 'edit' && !$isAdmin // Admin bisa edit divisi di Dokumen apapun

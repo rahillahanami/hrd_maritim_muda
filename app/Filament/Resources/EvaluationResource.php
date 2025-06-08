@@ -46,7 +46,7 @@ class EvaluationResource extends Resource
                 TextInput::make('period')
                     ->label('Periode Evaluasi')
                     ->required()
-                    ->placeholder('Misal: 2025-06 atau Juni 2025'),
+                    ->placeholder('Masukkan periode evaluasi'),
             ]);
     }
 

@@ -219,7 +219,17 @@ class LeaveResource extends Resource
                 Tables\Columns\TextColumn::make('type')
                     ->label('Tipe Cuti')
                     ->searchable()
-                    ->sortable(),
+                    ->sortable()
+                    ->getStateUsing(function ($record) {
+                        $labels = [
+                            'annual' => 'Cuti Tahunan',
+                            'sick' => 'Cuti Sakit',
+                            'permission' => 'Izin',
+                            'maternity' => 'Cuti Melahirkan',
+                            'other' => 'Cuti Lain-lain',
+                        ];
+                        return $labels[$record->type] ?? $record->type;
+                    }),
                 Tables\Columns\TextColumn::make('start_date')
                     ->label('Mulai Cuti')
                     ->date()

@@ -99,6 +99,7 @@ class ResignationResource extends Resource
                     ->schema([
                         // Field untuk Karyawan yang Mengajukan (user_id)
                         Forms\Components\Select::make('user_id')
+                            ->label('Karyawan')
                             ->disabled()
                             ->dehydrated(fn() => true)
                             ->relationship('user', 'name')
@@ -106,6 +107,7 @@ class ResignationResource extends Resource
                             ->required(),
 
                         Forms\Components\DatePicker::make('submission_date')
+                            ->label('Tanggal Pengajuan')
                             ->disabled()
                             ->dehydrated(fn() => true)
                             ->default(now())
@@ -116,6 +118,7 @@ class ResignationResource extends Resource
                 // Field untuk Tanggal Efektif Resign
                 // Field untuk Tanggal Efektif Resign
                 Forms\Components\DatePicker::make('effective_date')
+                    ->label('Tanggal Efektif Resign')
                     ->required()
                     ->minDate(now()->addDays(7))
                     ->placeholder('Tanggal Terakhir Bekerja')
@@ -136,6 +139,7 @@ class ResignationResource extends Resource
 
                 // Field untuk Alasan Resign
                 Forms\Components\Textarea::make('reason')
+                    ->label('Alasan Pengunduran Diri')
                     ->required()
                     ->rows(5)
                     ->maxLength(65535)

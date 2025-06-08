@@ -179,11 +179,12 @@ class SalaryResource extends Resource
                     ->required()
                     ->default(fn($get) => Employee::find($get('employee_id'))?->base_salary ?? null),
 
-                Forms\Components\TextInput::make('potongan')
-                    ->label('Potongan')
-                    ->numeric()
-                    ->disabled()
-                    ->default(0),
+                // Forms\Components\TextInput::make('potongan')
+                //     ->label('Potongan')
+                //     ->numeric()
+                //     ->disabled()
+                //     ->default(0)
+                //     ->visible(),
 
 
                 Forms\Components\TextInput::make('final_salary')

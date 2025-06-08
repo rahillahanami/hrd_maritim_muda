@@ -38,6 +38,7 @@ class InputEmployeeScore extends Page implements HasForms
         $this->scores = EvaluationCriteria::all()->map(fn($c) => [
             'evaluation_criteria_id' => $c->id,
             'criteria_name' => $c->name,
+            'weight' => $c->weight,
             'score' => null,
         ])->toArray();
     }
@@ -63,12 +64,23 @@ class InputEmployeeScore extends Page implements HasForms
                         ->label('Kriteria')
                         ->readOnly(),
                     Forms\Components\TextInput::make('score')
+                        ->label('Skor')
+                        ->placeholder('0-100')
                         ->numeric()
-                        ->required(),
+                        ->minValue(0)
+                        ->maxValue(100)
+                        ->required()
+                        ->helperText(function ($get) {
+                            $weight = $get('weight');
+                            return $weight ? "Bobot: " . ($weight * 100) . "%" : '';
+                        }),
+                    Forms\Components\Hidden::make('weight'),
                 ])
                 ->disableItemDeletion()
                 ->disableItemCreation()
-                ->columns(3),
+                ->reorderable(false)
+                ->columns(2),
+
         ];
     }
 
@@ -114,6 +126,7 @@ class InputEmployeeScore extends Page implements HasForms
         $this->scores = EvaluationCriteria::all()->map(fn($c) => [
             'evaluation_criteria_id' => $c->id,
             'criteria_name' => $c->name,
+            'weight' => $c->weight,
             'score' => null,
         ])->toArray();
     }

@@ -110,6 +110,7 @@ class EditEmployeeScore extends Page implements HasForms
                 ->disableItemCreation()
                 ->disableItemDeletion()
                 ->required(),
+
         ];
     }
 

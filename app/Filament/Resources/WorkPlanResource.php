@@ -130,6 +130,7 @@ class WorkPlanResource extends Resource
         return $form
             ->schema([
                 Forms\Components\TextInput::make('title')
+                    ->label('Judul')
                     ->required()
                     ->maxLength(255)
                     ->placeholder('Judul Rencana Kerja')
@@ -138,6 +139,7 @@ class WorkPlanResource extends Resource
                 // Terapkan logika disabled serupa untuk field yang hanya bisa diedit oleh admin/kepala divisi
 
                 Forms\Components\Textarea::make('description')
+                    ->label('Deskripsi')
                     ->nullable()
                     ->rows(4)
                     ->placeholder('Detail Rencana Kerja')
@@ -162,10 +164,12 @@ class WorkPlanResource extends Resource
                 Forms\Components\Grid::make(2)
                     ->schema([
                         Forms\Components\DatePicker::make('start_date')
+                            ->label('Tanggal Mulai')
                             ->required()
                             ->disabled(fn($operation) => $operation === 'edit' && !$isAdmin && !$isEditingOwnDivisionWorkPlan),
 
                         Forms\Components\DatePicker::make('due_date')
+                            ->label('Tanggal Tenggat')
                             ->required()
                             ->afterOrEqual('start_date')
                             ->disabled(fn($operation) => $operation === 'edit' && !$isAdmin && !$isEditingOwnDivisionWorkPlan),
@@ -194,6 +198,7 @@ class WorkPlanResource extends Resource
                     ->disabled(fn($operation) => $operation === 'edit' && !$isAdmin && !$isEditingOwnDivisionWorkPlan), // Progress hanya bisa diubah oleh admin/kepala divisi yang berhak
 
                 Forms\Components\Textarea::make('notes')
+                    ->label('Catatan')
                     ->nullable()
                     ->rows(3)
                     ->placeholder('Catatan atau pembaruan progres')
@@ -210,6 +215,7 @@ class WorkPlanResource extends Resource
 
                 // Field untuk divisi terkait (division_id)
                 Forms\Components\Select::make('division_id')
+                    ->label('Divisi')
                     ->relationship('division', 'name')
                     ->required() // WorkPlan wajib ditujukan ke divisi
                     ->placeholder('Pilih Divisi Terkait')
@@ -257,6 +263,7 @@ class WorkPlanResource extends Resource
         return $table
             ->columns([
                 Tables\Columns\TextColumn::make('title')
+                    ->label('Judul')
                     ->searchable()
                     ->sortable(),
                 Tables\Columns\TextColumn::make('division.name')

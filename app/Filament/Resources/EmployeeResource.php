@@ -42,7 +42,7 @@ class EmployeeResource extends Resource
 
     protected static ?string $slug = 'pegawai';
 
-    protected static function isCurrentUserAdmin(): bool
+    public static function isCurrentUserAdmin(): bool
     {
         $user = Filament::auth()->user();
         return $user && $user->hasRole('super_admin'); // Sesuaikan peran admin
@@ -71,7 +71,6 @@ class EmployeeResource extends Resource
         // Default Eloquent sudah tidak menyertakan yang soft-deleted, jadi tidak perlu withTrashed() di sini.
         return $query;
     }
-
 
     public static function form(Form $form): Form
     {
@@ -152,7 +151,7 @@ class EmployeeResource extends Resource
                             ->label('Jenis kelamin')
                             ->options([
                                 Gender::Male->value => 'Pria',
-                                Gender::Female->value => 'Wanih',
+                                Gender::Female->value => 'Wanita',
                             ])
                             ->required(),
                         DatePicker::make('birth_date')
@@ -169,6 +168,7 @@ class EmployeeResource extends Resource
                             ->maxLength(255)
                             ->required(),
                         Select::make('division_id') // Pastikan ini division_id bukan divisi_id
+                            ->label('Divisi')
                             ->relationship('division', 'name')
                             ->required(),
                     ])->columns(2), // Atur layout 2 kolom untuk Info Pegawai
@@ -192,41 +192,40 @@ class EmployeeResource extends Resource
                     ->sortable()
                     ->visible(fn() => $isAdmin), // Hanya Admin yang bisa melihat email akun
 
-                // *** KOLOM STATUS AKUN/KARYAWAN ***
-                Tables\Columns\TextColumn::make('status_karyawan') // Nama kolom dummy untuk tampilan
+                // *** FIXED ACCOUNT STATUS COLUMN ***
+                Tables\Columns\TextColumn::make('account_status') // Virtual column
                     ->label('Status Akun')
                     ->badge()
-                    // Hapus (string $state, Model $record): string $state
-                    // Cukup pakai Model $record
-                    ->formatStateUsing(function (Model $record): string { // <<< UBAH INI
-                        // Periksa apakah user terkait di-soft delete
+                    ->state(function (Model $record): string {
+                        // Check if the related user is soft deleted
                         if ($record->user && $record->user->trashed()) {
-                            return 'Nonaktif (Akun Resign)'; // Lebih spesifik untuk resign
+                            return 'Nonaktif';
                         }
-                        // Periksa apakah employee sendiri di-soft delete
+                        // Check if the employee itself is soft deleted
                         if ($record->trashed()) {
-                            return 'Nonaktif (Data Pegawai)'; // Nonaktif karena alasan lain (misal di-delete manual)
+                            return 'Nonaktif (Data Pegawai)';
                         }
                         return 'Aktif';
                     })
-                    ->color(function (Model $record): string { // <<< UBAH INI (tipe hint)
-                        if ($record->user && $record->user->trashed() || $record->trashed()) {
-                            return 'danger';
-                        }
-                        return 'success';
+                    ->color(fn(string $state): string => match ($state) {
+                        'Aktif' => 'success',
+                        default => 'danger',
                     })
-                    ->icon(function (Model $record): string { // <<< UBAH INI (tipe hint)
-                        if ($record->user && $record->user->trashed() || $record->trashed()) {
-                            return 'heroicon-o-x-circle';
-                        }
-                        return 'heroicon-o-check-circle';
+                    ->icon(fn(string $state): string => match ($state) {
+                        'Aktif' => 'heroicon-o-check-circle',
+                        default => 'heroicon-o-x-circle',
                     })
                     ->visible(fn() => $isAdmin),
 
-                // ... (kolom gender, birth_date, phone_number, division.name, status) ...
                 TextColumn::make('gender')
                     ->label('Jenis Kelamin')
+                    ->formatStateUsing(fn(string $state): string => match ($state) {
+                        Gender::Male->value => 'Pria',
+                        Gender::Female->value => 'Wanita',
+                        default => $state,
+                    })
                     ->sortable(),
+
                 TextColumn::make('birth_date')
                     ->label('Tanggal Lahir')
                     ->date()

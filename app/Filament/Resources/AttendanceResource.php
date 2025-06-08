@@ -62,6 +62,7 @@ class AttendanceResource extends Resource
         return $form
             ->schema([
                 Select::make('employee_id')
+                    ->label('Karyawan')
                     ->relationship('employee', 'name')
                     ->required()
                     ->default(function () use ($isAdmin, $currentUser) {
@@ -76,13 +77,14 @@ class AttendanceResource extends Resource
                     ->preload(),
 
                 DatePicker::make('date')
+                    ->label('Tanggal')
                     ->required()
                     ->default(now()),
 
                 DateTimePicker::make('check_in')
                     ->label('Check In Time')
-                    ->nullable()
-                    ->helperText('Late minutes will be calculated automatically based on 08:00 base time'),
+                    ->nullable(),
+                    // ->helperText('Late minutes will be calculated automatically based on 08:00 base time'),
 
                 DateTimePicker::make('check_out')
                     ->label('Check Out Time')
@@ -92,16 +94,16 @@ class AttendanceResource extends Resource
                 TextInput::make('early_minutes')
                     ->label('Early Minutes')
                     ->numeric()
-                    ->default(0)
-                    ->readonly() // Make it readonly so users can see the calculated value
-                    ->helperText('Automatically calculated based on check-in time'),
+                    ->default(0),
+                    // ->readonly(), // Make it readonly so users can see the calculated value
+                    // ->helperText('Automatically calculated based on check-in time'),
 
                 TextInput::make('late_minutes')
                     ->label('Late Minutes')
                     ->numeric()
-                    ->default(0)
-                    ->readonly() // Make it readonly so users can see the calculated value
-                    ->helperText('Automatically calculated when check-in > 08:00'),
+                    ->default(0),
+                    // ->readonly() // Make it readonly so users can see the calculated value
+                    // ->helperText('Automatically calculated when check-in > 08:00'),
             ]);
     }
 
@@ -113,10 +115,11 @@ class AttendanceResource extends Resource
         return $table
             ->columns([
                 TextColumn::make('employee.name')
-                    ->label('Employee Name')
+                    ->label('Nama Karyawan')
                     ->searchable()
                     ->sortable(),
                 TextColumn::make('date')
+                    ->label('Tanggal')
                     ->date()
                     ->sortable(),
                 TextColumn::make('check_in')

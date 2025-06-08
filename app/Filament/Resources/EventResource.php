@@ -145,6 +145,7 @@ class EventResource extends Resource
 
                 // Field untuk divisi (division_id)
                 Select::make('division_id')
+                    ->label('Divisi') // Ubah label
                     ->relationship('division', 'name')
                     ->required(fn() => !$isAdmin) // Hanya wajib jika bukan admin (admin bisa pilih null untuk global)
                     ->placeholder('Pilih Divisi Terkait')
