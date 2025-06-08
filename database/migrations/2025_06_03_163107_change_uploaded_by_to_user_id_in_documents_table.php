@@ -12,13 +12,7 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('documents', function (Blueprint $table) {
-            // 1. Drop the existing 'uploaded_by' column
             $table->dropColumn('uploaded_by');
-
-            // 2. Add the new 'user_id' foreign key column
-            // Asumsi 'users' table ada dan memiliki 'id'
-            // Sesuaikan 'after()' dengan kolom terdekat yang relevan, misal after('status')
-            $table->foreignId('user_id')->nullable()->constrained('users')->cascadeOnDelete()->after('status');
         });
     }
 

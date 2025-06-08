@@ -11,10 +11,7 @@ return new class extends Migration
      */
     public function up(): void
     {
-        // Gunakan Schema::table() karena tabel 'documents' sudah ada
         Schema::table('documents', function (Blueprint $table) {
-            // Mengubah kolom 'type' menjadi nullable.
-            // Pastikan Anda telah menginstal 'doctrine/dbal' jika belum: composer require doctrine/dbal
             $table->string('type')->nullable()->change();
         });
     }
