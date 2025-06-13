@@ -27,6 +27,9 @@ class Calendarwidget extends FullCalendarWidget
 
     public Model | string | null $model = Event::class;
 
+    // Disable the create event button
+    protected bool $createEventOnClick = false;
+
     protected function isCurrentUserAdmin(): bool
     {
         $user = Filament::auth()->user();
@@ -102,6 +105,26 @@ class Calendarwidget extends FullCalendarWidget
                 ]);
             }),
             DeleteAction::make(),
+        ];
+    }
+
+    // Override the config method to disable drag and drop
+    protected function getConfig(): array
+    {
+        return [
+            'editable' => false, // Disable drag and drop
+            'droppable' => false, // Disable dropping external elements
+            'eventResizable' => false, // Disable event resizing
+            'eventDurationEditable' => false, // Disable duration editing
+            'eventStartEditable' => false, // Disable start time editing
+        ];
+    }
+
+    // Override header actions to remove create button
+    protected function headerActions(): array
+    {
+        return [
+            // Return empty array to remove all header actions including create button
         ];
     }
 }
