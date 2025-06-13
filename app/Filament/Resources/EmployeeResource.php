@@ -57,19 +57,21 @@ class EmployeeResource extends Resource
         return Division::where('head_id', $user->employee->id)->exists();
     }
 
-    // *** Modifikasi getEloquentQuery() ***
+    // *** FIXED getEloquentQuery() method ***
     public static function getEloquentQuery(): Builder
     {
-        $query = parent::getEloquentQuery(); // Dapatkan builder awal
+        $query = parent::getEloquentQuery();
 
         if (static::isCurrentUserAdmin()) {
             // Admin bisa melihat semua Employee (termasuk yang soft-deleted)
-            return $query->withTrashed(); // Ini yang sudah kita konfirmasi bekerja
+            // Include user relationship dengan trashed
+            return $query->withTrashed()->with(['user' => function($q) {
+                $q->withTrashed();
+            }]);
         }
 
-        // User biasa (non-admin) hanya melihat Employee yang aktif (tidak di-soft delete)
-        // Default Eloquent sudah tidak menyertakan yang soft-deleted, jadi tidak perlu withTrashed() di sini.
-        return $query;
+        // User biasa hanya melihat Employee yang aktif
+        return $query->with('user'); // Include user relationship
     }
 
     public static function form(Form $form): Form
@@ -242,32 +244,40 @@ class EmployeeResource extends Resource
                     ->toggleable(isToggledHiddenByDefault: true),
             ])
             ->filters([
-                // *** FILTER UNTUK STATUS AKTIF/NONAKTIF ***
-                Tables\Filters\TernaryFilter::make('deleted_at')
-                    ->nullable()
-                    ->label('Status Karyawan')
-                    ->boolean()
-                    ->trueLabel('Nonaktif')
-                    ->falseLabel('Aktif')
-                    ->placeholder('Semua')
+                // *** FIXED FILTER FOR ACTIVE/INACTIVE STATUS ***
+                Tables\Filters\Filter::make('status')
+                    ->form([
+                        Select::make('status')
+                            ->label('Status Karyawan')
+                            ->options([
+                                'active' => 'Aktif',
+                                'inactive' => 'Nonaktif',
+                            ])
+                            ->placeholder('Semua'),
+                    ])
                     ->visible(fn() => $isAdmin)
                     ->query(function (Builder $query, array $data): Builder {
-                        if (isset($data['value'])) {
-                            // Jika 'Nonaktif' dipilih (value=true)
-                            if ($data['value'] === true) {
-                                // Tampilkan employee yang soft deleted ATAU employee yang user-nya soft deleted
-                                return $query->onlyTrashed()->orWhereHas('user', fn($q) => $q->onlyTrashed());
-                            }
-                            // Jika 'Aktif' dipilih (value=false)
-                            else if ($data['value'] === false) {
-                                // Tampilkan employee yang tidak soft deleted DAN user-nya tidak soft deleted
-                                return $query->withoutTrashed()->whereDoesntHave('user', fn($q) => $q->onlyTrashed());
+                        if (!empty($data['status'])) {
+                            if ($data['status'] === 'active') {
+                                // Filter untuk employee aktif - tidak soft deleted DAN user tidak soft deleted
+                                $query->whereNull('deleted_at')
+                                      ->whereHas('user', function ($q) {
+                                          $q->whereNull('deleted_at');
+                                      });
+                            } elseif ($data['status'] === 'inactive') {
+                                // Filter untuk employee nonaktif - soft deleted ATAU user soft deleted
+                                $query->where(function ($q) {
+                                    $q->whereNotNull('deleted_at')
+                                      ->orWhereHas('user', function ($userQ) {
+                                          $userQ->withTrashed()->whereNotNull('deleted_at');
+                                      });
+                                });
                             }
                         }
-                        // Default: Tampilkan semua (termasuk trashed jika admin, hanya aktif jika user biasa)
                         return $query;
                     }),
-                // ... (filter lain) ...
+
+                // Filter divisi
                 Tables\Filters\SelectFilter::make('division_id')
                     ->relationship('division', 'name')
                     ->label('Filter Divisi')
