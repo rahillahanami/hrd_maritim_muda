@@ -13,6 +13,8 @@ use Filament\Forms\Concerns\InteractsWithForms;
 use App\Models\PerformanceResult;
 use Filament\Facades\Filament;
 use Filament\Notifications\Notification;
+use Illuminate\Support\Collection; // Pastikan ini di-import jika menggunakan Collection
+use Illuminate\Support\Facades\Log; // Pastikan ini di-import jika menggunakan Log
 
 class EvaluatePerformance extends Page implements HasForms
 {
@@ -23,6 +25,7 @@ class EvaluatePerformance extends Page implements HasForms
 
     public $history = [];
     public $evaluation_id;
+    public $lambda = 0.5; // Properti publik untuk lambda, default 0.5
 
     protected static ?string $navigationIcon = 'heroicon-o-calculator';
     protected static string $view = 'filament.pages.evaluate-performance';
@@ -45,12 +48,20 @@ class EvaluatePerformance extends Page implements HasForms
     public function mount(): void
     {
         // Kosong, user harus pilih evaluasi dulu
+        // Data history akan dimuat ketika evaluation_id dipilih via updatedEvaluationId
     }
 
     public function evaluate()
     {
+        Log::info('DEBUG SPK: Evaluasi dimulai.');
+        Log::info('DEBUG SPK: Evaluation ID selected: ' . ($this->evaluation_id ?? 'NULL'));
+        Log::info('DEBUG SPK: Lambda parameter: ' . $this->lambda);
+
         $criteria = EvaluationCriteria::all();
         $employees = Employee::all();
+
+        // Ambil lambda dari properti publik
+        $lambda = $this->lambda ?? 0.5; // Pastikan lambda antara 0-1 (validasi di getFormSchema)
 
         // Validasi: pastikan ada kriteria dan karyawan
         if ($criteria->isEmpty() || $employees->isEmpty()) {
@@ -80,6 +91,7 @@ class EvaluatePerformance extends Page implements HasForms
 
                 $scoresMatrix[$employee->id]['scores'][$criterion->id] = $score ?? 0;
             }
+            Log::info('DEBUG SPK: Scores collected for Employee ' . $employee->name . ' (ID: ' . $employee->id . '): ' . json_encode($scoresMatrix[$employee->id]['scores']));
         }
 
         // Validasi: pastikan ada skor untuk evaluasi yang dipilih
@@ -100,66 +112,89 @@ class EvaluatePerformance extends Page implements HasForms
             return;
         }
 
-        // ===== NORMALISASI SAW =====
+        // ===== NORMALISASI (Metode yang sama untuk SAW/WPM) =====
         $normalized = [];
-        
+
         // Inisialisasi struktur normalized
         foreach ($scoresMatrix as $empId => $data) {
             $normalized[$empId] = [
                 'employee_id' => $empId,
                 'name' => $data['name'],
                 'normalized_scores' => [],
-                'weighted_scores' => [],
-                'total' => 0
+                'saw_sum' => 0,     // Total WSM untuk karyawan ini
+                'wp_product' => 1.0,  // Total WPM untuk karyawan ini
+                'waspas_total' => 0 // Final WASPAS score
             ];
         }
 
         // Normalisasi per kriteria
         foreach ($criteria as $criterion) {
-            // Ambil semua nilai untuk kriteria ini
+            Log::info('DEBUG SPK: Kriteria ' . $criterion->name . ' (ID: ' . $criterion->id . ') - Bobot: ' . $criterion->weight . ', Tipe: ' . $criterion->type);
             $values = [];
             foreach ($scoresMatrix as $empId => $data) {
-                $values[] = $data['scores'][$criterion->id];
+                $values[] = (float) $data['scores'][$criterion->id]; // Pastikan nilai adalah float
             }
 
-            // Hitung min dan max
             $maxValue = max($values);
             $minValue = min($values);
 
-            // Normalisasi setiap nilai untuk kriteria ini
             foreach ($scoresMatrix as $empId => $data) {
-                $originalValue = $data['scores'][$criterion->id];
-                $normalizedValue = 0;
+                $originalValue = (float) $data['scores'][$criterion->id]; // Pastikan nilai adalah float
+                $normalizedValue = 0.0; // Gunakan float
 
                 if ($criterion->type === 'benefit') {
                     // Untuk kriteria benefit (semakin tinggi semakin baik)
                     // Formula: r_ij = x_ij / max(x_ij)
-                    $normalizedValue = $maxValue > 0 ? $originalValue / $maxValue : 0;
-                } else {
-                    // Untuk kriteria cost (semakin rendah semakin baik)
+                    $normalizedValue = $maxValue > 0 ? $originalValue / $maxValue : 0.0;
+                } else { // Cost (semakin rendah semakin baik)
                     // Formula: r_ij = min(x_ij) / x_ij
                     if ($originalValue > 0) {
                         $normalizedValue = $minValue / $originalValue;
                     } else {
-                        // Jika nilai asli = 0, berikan nilai normalisasi tertinggi (1)
-                        // karena 0 adalah nilai terbaik untuk kriteria cost
-                        $normalizedValue = 1;
+                        $normalizedValue = 1.0; // Jika nilai cost 0, dianggap terbaik (normalisasi 1)
                     }
                 }
 
-                // Simpan nilai normalisasi
                 $normalized[$empId]['normalized_scores'][$criterion->id] = $normalizedValue;
-                
-                // Hitung nilai terbobot dan tambahkan ke total
-                $weightedScore = $normalizedValue * ($criterion->weight); // Asumsi weight dalam persen
-                $normalized[$empId]['weighted_scores'][$criterion->id] = $weightedScore;
-                $normalized[$empId]['total'] += $weightedScore;
             }
         }
 
-        // Urutkan berdasarkan total skor (descending)
+        // ===== PERHITUNGAN WASPAS =====
+        foreach ($normalized as $empId => &$data) { // Pakai '&' untuk modifikasi langsung
+            $sawSum = 0.0;      // Komponen SAW (penjumlahan)
+            $wpProduct = 1.0; // Komponen WP (perkalian), pakai float
+
+            foreach ($criteria as $criterion) {
+                $normalizedValue = $data['normalized_scores'][$criterion->id];
+                $weight = (float) $criterion->weight; // HAPUS PEMBAGIAN 100
+
+                Log::info('DEBUG SPK: Employee ' . $data['name'] . ' - Kriteria ' . $criterion->name . ' (ID: ' . $criterion->id . ') - Norm: ' . $normalizedValue . ', Weight: ' . $weight);
+
+                // Bagian WSM (SAW): w_j × r_ij
+                $sawComponent = $weight * $normalizedValue;
+                $sawSum += $sawComponent;
+
+                // Bagian WPM: r_ij^w_j
+                if ($normalizedValue > 0) {
+                    $wpComponent = pow($normalizedValue, $weight);
+                    $wpProduct *= $wpComponent;
+                } else {
+                    $wpProduct = 0.0; // Jika ada nilai normalisasi 0, hasil perkalian jadi 0
+                    break; // Hentikan loop WP untuk kriteria ini
+                }
+            }
+
+            $data['saw_sum'] = $sawSum;
+            $data['wp_product'] = $wpProduct;
+
+            // WASPAS Final Score: λ × SAW + (1-λ) × WP
+            $data['waspas_total'] = ($lambda * $sawSum) + ((1 - $lambda) * $wpProduct);
+            Log::info('DEBUG SPK: Employee ' . $data['name'] . ' - SAW Sum: ' . $sawSum . ', WP Product: ' . $wpProduct . ', WASPAS Total: ' . $data['waspas_total']);
+        }
+
+        // Urutkan berdasarkan WASPAS total skor (descending)
         $sorted = collect($normalized)
-            ->sortByDesc('total')
+            ->sortByDesc('waspas_total')
             ->values()
             ->toArray();
 
@@ -168,7 +203,7 @@ class EvaluatePerformance extends Page implements HasForms
         $this->evaluatedResults = [];
 
         foreach ($sorted as $index => $item) {
-            $finalScore = round($item['total'], 4);
+            $finalScore = round($item['waspas_total'], 4); // Pembulatan hasil akhir ke 4 desimal
             $rank = $index + 1;
 
             $this->results[] = [
@@ -177,7 +212,9 @@ class EvaluatePerformance extends Page implements HasForms
                 'total' => $finalScore,
                 'rank' => $rank,
                 'normalized_scores' => $item['normalized_scores'],
-                'weighted_scores' => $item['weighted_scores']
+                'saw_scores_sum' => round($item['saw_sum'], 4), // Tampilkan total SAW
+                'wp_scores_product' => round($item['wp_product'], 4), // Tampilkan total WPM
+                'lambda' => $lambda,
             ];
 
             $this->evaluatedResults[] = [
@@ -185,12 +222,13 @@ class EvaluatePerformance extends Page implements HasForms
                 'final_score' => $finalScore,
                 'rank' => $rank,
                 'name' => $item['name'],
+                'evaluation_id' => $this->evaluation_id, // Tambahkan evaluation_id untuk penyimpanan
             ];
         }
 
         Notification::make()
             ->title('Evaluasi berhasil dihitung')
-            ->body('Hasil evaluasi kinerja telah berhasil dihitung menggunakan metode SAW.')
+            ->body('Hasil evaluasi kinerja telah berhasil dihitung menggunakan metode WASPAS.') // Notifikasi WASPAS
             ->success()
             ->send();
     }
@@ -202,6 +240,12 @@ class EvaluatePerformance extends Page implements HasForms
 
     public function loadHistory($evaluationId)
     {
+        // Validasi sederhana jika evaluationId null
+        if (is_null($evaluationId)) {
+            $this->history = [];
+            return;
+        }
+
         $this->history = PerformanceResult::with('employee')
             ->where('evaluation_id', $evaluationId)
             ->orderBy('score', 'desc')
@@ -209,7 +253,7 @@ class EvaluatePerformance extends Page implements HasForms
             ->map(function ($result, $index) {
                 return [
                     'rank' => $index + 1,
-                    'name' => $result->employee->name,
+                    'name' => $result->employee->name ?? 'N/A', // Tambah null coalescing
                     'score' => round($result->score, 4),
                 ];
             })->toArray();
@@ -248,8 +292,6 @@ class EvaluatePerformance extends Page implements HasForms
             ]);
         }
 
-
-
         Notification::make()
             ->title('Hasil evaluasi berhasil disimpan')
             ->body('Hasil evaluasi kinerja telah berhasil disimpan ke database.')
@@ -269,9 +311,18 @@ class EvaluatePerformance extends Page implements HasForms
                 ->options(Evaluation::all()->pluck('period', 'id'))
                 ->required()
                 ->reactive()
-                ->afterStateUpdated(fn ($state) => $this->updatedEvaluationId($state)),
+                ->afterStateUpdated(fn($state) => $this->updatedEvaluationId($state)),
 
-                 Forms\Components\Placeholder::make('')
+            Forms\Components\TextInput::make('lambda')
+                ->label('Parameter Lambda (0-1)')
+                ->numeric()
+                ->default(0.5)
+                ->minValue(0)
+                ->maxValue(1)
+                ->step(0.1)
+                ->helperText('0 = 100% WP, 0.5 = 50% SAW + 50% WP, 1 = 100% SAW'),
+
+            Forms\Components\Placeholder::make('')
                 ->content('')
                 ->extraAttributes(['class' => 'block h-2']),
         ];

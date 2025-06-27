@@ -171,7 +171,8 @@ class ResignationResource extends Resource
                     ->disabled(fn() => !$isAdmin) // <<< HANYA ADMIN YANG BISA MENGUBAH STATUS (tetap)
                     ->default('Pending')
                     ->columnSpanFull()
-                    ->visible(fn() => $isAdmin),
+                    ->visible(fn() => $isAdmin)
+                    ->hidden(),
 
                 // Field untuk Catatan Internal (hanya terlihat dan bisa diubah oleh HR/Manajer)
                 Forms\Components\Textarea::make('notes')
@@ -190,7 +191,8 @@ class ResignationResource extends Resource
                     ->placeholder('Pilih Penyetuju/Penolak')
                     ->searchable()
                     ->preload()
-                    ->visible(fn() => $isAdmin),
+                    ->visible(fn() => $isAdmin)
+                    ->hidden(),
             ]);
     }
 

@@ -2,6 +2,7 @@
 
 namespace App\Providers\Filament;
 
+use App\Filament\Pages\Login;
 use App\Filament\Widgets\Calendarwidget;
 use App\Filament\Widgets\MyAttendanceStatus;
 use App\Filament\Widgets\MyDivisionWorkPlansOverview;
@@ -34,7 +35,7 @@ class AdminPanelProvider extends PanelProvider
             ->default()
             ->id('admin')
             ->path('admin')
-            ->login()
+            ->login(Login::class)
             ->colors([
                 'primary' => Color::Amber,
             ])
