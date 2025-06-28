@@ -6,12 +6,14 @@ use App\Models\Employee;
 use App\Models\Evaluation;
 use App\Models\EvaluationCriteria;
 use App\Models\EmployeeScore;
+use Carbon\Carbon;
 use Filament\Forms;
 use Filament\Pages\Page;
 use Illuminate\Support\Facades\Auth;
 use Filament\Forms\Contracts\HasForms;
 use Filament\Forms\Concerns\InteractsWithForms;
 use Filament\Notifications\Notification;
+use Illuminate\Support\Facades\Log;
 
 class EditEmployeeScore extends Page implements HasForms
 {
@@ -91,7 +93,20 @@ class EditEmployeeScore extends Page implements HasForms
 
             Forms\Components\Select::make('evaluation_id')
                 ->label('Periode Evaluasi')
-                ->options(Evaluation::all()->pluck('period', 'id'))
+                ->options(function () {
+                    return Evaluation::all()->mapWithKeys(function ($eval) {
+                        try {
+                            $date = Carbon::createFromFormat('Y-m', $eval->period);
+                            $englishMonth = $date->format('F');
+                            $year = $date->format('Y');
+                            $localized = convertEnglishMonthToIndonesian($englishMonth);
+                            return [$eval->id => $localized . ' ' . $year];
+                        } catch (\Exception $e) {
+                            Log::error('Invalid date format in Evaluation: ' . $eval->period);
+                            return [$eval->id => $eval->period];
+                        }
+                    });
+                })
                 ->reactive()
                 ->required(),
 

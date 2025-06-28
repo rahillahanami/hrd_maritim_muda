@@ -13,8 +13,9 @@ use Filament\Forms\Concerns\InteractsWithForms;
 use App\Models\PerformanceResult;
 use Filament\Facades\Filament;
 use Filament\Notifications\Notification;
-use Illuminate\Support\Collection; // Pastikan ini di-import jika menggunakan Collection
-use Illuminate\Support\Facades\Log; // Pastikan ini di-import jika menggunakan Log
+use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Log;
+use Carbon\Carbon;
 
 class EvaluatePerformance extends Page implements HasForms
 {
@@ -25,7 +26,7 @@ class EvaluatePerformance extends Page implements HasForms
 
     public $history = [];
     public $evaluation_id;
-    public $lambda = 0.5; // Properti publik untuk lambda, default 0.5
+    public $lambda = 0.5;
 
     protected static ?string $navigationIcon = 'heroicon-o-calculator';
     protected static string $view = 'filament.pages.evaluate-performance';
@@ -47,8 +48,7 @@ class EvaluatePerformance extends Page implements HasForms
 
     public function mount(): void
     {
-        // Kosong, user harus pilih evaluasi dulu
-        // Data history akan dimuat ketika evaluation_id dipilih via updatedEvaluationId
+        // Kosong
     }
 
     public function evaluate()
@@ -60,10 +60,8 @@ class EvaluatePerformance extends Page implements HasForms
         $criteria = EvaluationCriteria::all();
         $employees = Employee::all();
 
-        // Ambil lambda dari properti publik
-        $lambda = $this->lambda ?? 0.5; // Pastikan lambda antara 0-1 (validasi di getFormSchema)
+        $lambda = $this->lambda ?? 0.5;
 
-        // Validasi: pastikan ada kriteria dan karyawan
         if ($criteria->isEmpty() || $employees->isEmpty()) {
             Notification::make()
                 ->title('Data tidak lengkap')
@@ -75,7 +73,6 @@ class EvaluatePerformance extends Page implements HasForms
 
         $scoresMatrix = [];
 
-        // Ambil skor tiap karyawan per kriteria
         foreach ($employees as $employee) {
             $scoresMatrix[$employee->id] = [
                 'employee_id' => $employee->id,
@@ -91,10 +88,8 @@ class EvaluatePerformance extends Page implements HasForms
 
                 $scoresMatrix[$employee->id]['scores'][$criterion->id] = $score ?? 0;
             }
-            Log::info('DEBUG SPK: Scores collected for Employee ' . $employee->name . ' (ID: ' . $employee->id . '): ' . json_encode($scoresMatrix[$employee->id]['scores']));
         }
 
-        // Validasi: pastikan ada skor untuk evaluasi yang dipilih
         $hasScores = false;
         foreach ($scoresMatrix as $empData) {
             if (array_sum($empData['scores']) > 0) {
@@ -112,98 +107,71 @@ class EvaluatePerformance extends Page implements HasForms
             return;
         }
 
-        // ===== NORMALISASI (Metode yang sama untuk SAW/WPM) =====
         $normalized = [];
-
-        // Inisialisasi struktur normalized
         foreach ($scoresMatrix as $empId => $data) {
             $normalized[$empId] = [
                 'employee_id' => $empId,
                 'name' => $data['name'],
                 'normalized_scores' => [],
-                'saw_sum' => 0,     // Total WSM untuk karyawan ini
-                'wp_product' => 1.0,  // Total WPM untuk karyawan ini
-                'waspas_total' => 0 // Final WASPAS score
+                'saw_sum' => 0,
+                'wp_product' => 1.0,
+                'waspas_total' => 0
             ];
         }
 
-        // Normalisasi per kriteria
         foreach ($criteria as $criterion) {
-            Log::info('DEBUG SPK: Kriteria ' . $criterion->name . ' (ID: ' . $criterion->id . ') - Bobot: ' . $criterion->weight . ', Tipe: ' . $criterion->type);
             $values = [];
-            foreach ($scoresMatrix as $empId => $data) {
-                $values[] = (float) $data['scores'][$criterion->id]; // Pastikan nilai adalah float
+            foreach ($scoresMatrix as $data) {
+                $values[] = (float) $data['scores'][$criterion->id];
             }
 
             $maxValue = max($values);
             $minValue = min($values);
 
             foreach ($scoresMatrix as $empId => $data) {
-                $originalValue = (float) $data['scores'][$criterion->id]; // Pastikan nilai adalah float
-                $normalizedValue = 0.0; // Gunakan float
+                $originalValue = (float) $data['scores'][$criterion->id];
+                $normalizedValue = 0.0;
 
                 if ($criterion->type === 'benefit') {
-                    // Untuk kriteria benefit (semakin tinggi semakin baik)
-                    // Formula: r_ij = x_ij / max(x_ij)
                     $normalizedValue = $maxValue > 0 ? $originalValue / $maxValue : 0.0;
-                } else { // Cost (semakin rendah semakin baik)
-                    // Formula: r_ij = min(x_ij) / x_ij
-                    if ($originalValue > 0) {
-                        $normalizedValue = $minValue / $originalValue;
-                    } else {
-                        $normalizedValue = 1.0; // Jika nilai cost 0, dianggap terbaik (normalisasi 1)
-                    }
+                } else {
+                    $normalizedValue = $originalValue > 0 ? $minValue / $originalValue : 1.0;
                 }
 
                 $normalized[$empId]['normalized_scores'][$criterion->id] = $normalizedValue;
             }
         }
 
-        // ===== PERHITUNGAN WASPAS =====
-        foreach ($normalized as $empId => &$data) { // Pakai '&' untuk modifikasi langsung
-            $sawSum = 0.0;      // Komponen SAW (penjumlahan)
-            $wpProduct = 1.0; // Komponen WP (perkalian), pakai float
+        foreach ($normalized as $empId => &$data) {
+            $sawSum = 0.0;
+            $wpProduct = 1.0;
 
             foreach ($criteria as $criterion) {
                 $normalizedValue = $data['normalized_scores'][$criterion->id];
-                $weight = (float) $criterion->weight; // HAPUS PEMBAGIAN 100
+                $weight = (float) $criterion->weight;
 
-                Log::info('DEBUG SPK: Employee ' . $data['name'] . ' - Kriteria ' . $criterion->name . ' (ID: ' . $criterion->id . ') - Norm: ' . $normalizedValue . ', Weight: ' . $weight);
+                $sawSum += $weight * $normalizedValue;
 
-                // Bagian WSM (SAW): w_j × r_ij
-                $sawComponent = $weight * $normalizedValue;
-                $sawSum += $sawComponent;
-
-                // Bagian WPM: r_ij^w_j
                 if ($normalizedValue > 0) {
-                    $wpComponent = pow($normalizedValue, $weight);
-                    $wpProduct *= $wpComponent;
+                    $wpProduct *= pow($normalizedValue, $weight);
                 } else {
-                    $wpProduct = 0.0; // Jika ada nilai normalisasi 0, hasil perkalian jadi 0
-                    break; // Hentikan loop WP untuk kriteria ini
+                    $wpProduct = 0.0;
+                    break;
                 }
             }
 
             $data['saw_sum'] = $sawSum;
             $data['wp_product'] = $wpProduct;
-
-            // WASPAS Final Score: λ × SAW + (1-λ) × WP
             $data['waspas_total'] = ($lambda * $sawSum) + ((1 - $lambda) * $wpProduct);
-            Log::info('DEBUG SPK: Employee ' . $data['name'] . ' - SAW Sum: ' . $sawSum . ', WP Product: ' . $wpProduct . ', WASPAS Total: ' . $data['waspas_total']);
         }
 
-        // Urutkan berdasarkan WASPAS total skor (descending)
-        $sorted = collect($normalized)
-            ->sortByDesc('waspas_total')
-            ->values()
-            ->toArray();
+        $sorted = collect($normalized)->sortByDesc('waspas_total')->values()->toArray();
 
-        // Buat hasil akhir dengan ranking
         $this->results = [];
         $this->evaluatedResults = [];
 
         foreach ($sorted as $index => $item) {
-            $finalScore = round($item['waspas_total'], 4); // Pembulatan hasil akhir ke 4 desimal
+            $finalScore = round($item['waspas_total'], 4);
             $rank = $index + 1;
 
             $this->results[] = [
@@ -212,8 +180,8 @@ class EvaluatePerformance extends Page implements HasForms
                 'total' => $finalScore,
                 'rank' => $rank,
                 'normalized_scores' => $item['normalized_scores'],
-                'saw_scores_sum' => round($item['saw_sum'], 4), // Tampilkan total SAW
-                'wp_scores_product' => round($item['wp_product'], 4), // Tampilkan total WPM
+                'saw_scores_sum' => round($item['saw_sum'], 4),
+                'wp_scores_product' => round($item['wp_product'], 4),
                 'lambda' => $lambda,
             ];
 
@@ -222,13 +190,13 @@ class EvaluatePerformance extends Page implements HasForms
                 'final_score' => $finalScore,
                 'rank' => $rank,
                 'name' => $item['name'],
-                'evaluation_id' => $this->evaluation_id, // Tambahkan evaluation_id untuk penyimpanan
+                'evaluation_id' => $this->evaluation_id,
             ];
         }
 
         Notification::make()
             ->title('Evaluasi berhasil dihitung')
-            ->body('Hasil evaluasi kinerja telah berhasil dihitung menggunakan metode WASPAS.') // Notifikasi WASPAS
+            ->body('Hasil evaluasi kinerja telah berhasil dihitung menggunakan metode WASPAS.')
             ->success()
             ->send();
     }
@@ -240,7 +208,6 @@ class EvaluatePerformance extends Page implements HasForms
 
     public function loadHistory($evaluationId)
     {
-        // Validasi sederhana jika evaluationId null
         if (is_null($evaluationId)) {
             $this->history = [];
             return;
@@ -253,7 +220,7 @@ class EvaluatePerformance extends Page implements HasForms
             ->map(function ($result, $index) {
                 return [
                     'rank' => $index + 1,
-                    'name' => $result->employee->name ?? 'N/A', // Tambah null coalescing
+                    'name' => $result->employee->name ?? 'N/A',
                     'score' => round($result->score, 4),
                 ];
             })->toArray();
@@ -261,7 +228,6 @@ class EvaluatePerformance extends Page implements HasForms
 
     public function submit()
     {
-        // Validasi: pastikan sudah ada hasil evaluasi
         if (empty($this->evaluatedResults)) {
             Notification::make()
                 ->title('Belum ada hasil evaluasi')
@@ -271,7 +237,6 @@ class EvaluatePerformance extends Page implements HasForms
             return;
         }
 
-        // Cek apakah sudah ada data hasil evaluasi untuk evaluation_id ini
         $exists = PerformanceResult::where('evaluation_id', $this->evaluation_id)->exists();
 
         if ($exists) {
@@ -283,7 +248,6 @@ class EvaluatePerformance extends Page implements HasForms
             return;
         }
 
-        // Simpan hasil evaluasi
         foreach ($this->evaluatedResults as $result) {
             PerformanceResult::create([
                 'employee_id' => $result['employee_id'],
@@ -298,7 +262,6 @@ class EvaluatePerformance extends Page implements HasForms
             ->success()
             ->send();
 
-        // Reset hasil setelah disimpan
         $this->results = [];
         $this->evaluatedResults = [];
     }
@@ -308,7 +271,20 @@ class EvaluatePerformance extends Page implements HasForms
         return [
             Forms\Components\Select::make('evaluation_id')
                 ->label('Pilih Periode Evaluasi')
-                ->options(Evaluation::all()->pluck('period', 'id'))
+                ->options(function () {
+                    return Evaluation::all()->mapWithKeys(function ($eval) {
+                        try {
+                            $date = Carbon::createFromFormat('Y-m', $eval->period);
+                            $englishMonth = $date->format('F');
+                            $year = $date->format('Y');
+                            $localized = convertEnglishMonthToIndonesian($englishMonth);
+                            return [$eval->id => $localized . ' ' . $year];
+                        } catch (\Exception $e) {
+                            Log::error('Invalid date format in Evaluation: ' . $eval->period);
+                            return [$eval->id => $eval->period];
+                        }
+                    });
+                })
                 ->required()
                 ->reactive()
                 ->afterStateUpdated(fn($state) => $this->updatedEvaluationId($state)),
@@ -322,9 +298,7 @@ class EvaluatePerformance extends Page implements HasForms
                 ->step(0.1)
                 ->helperText('0 = 100% WP, 0.5 = 50% SAW + 50% WP, 1 = 100% SAW'),
 
-            Forms\Components\Placeholder::make('')
-                ->content('')
-                ->extraAttributes(['class' => 'block h-2']),
+            Forms\Components\Placeholder::make('')->content('')->extraAttributes(['class' => 'block h-2']),
         ];
     }
 

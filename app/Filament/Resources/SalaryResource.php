@@ -23,6 +23,7 @@ use App\Models\Division;
 use App\Models\Leave;
 use Carbon\Carbon;
 use Filament\Facades\Filament;
+use Illuminate\Support\Facades\Log;
 
 class SalaryResource extends Resource
 {
@@ -165,7 +166,20 @@ class SalaryResource extends Resource
 
                 Forms\Components\Select::make('evaluation_id')
                     ->label('Periode Evaluasi')
-                    ->options(Evaluation::all()->pluck('period', 'id'))
+                    ->options(function () {
+                        return \App\Models\Evaluation::all()->mapWithKeys(function ($eval) {
+                            try {
+                                $date = \Carbon\Carbon::createFromFormat('Y-m', $eval->period);
+                                $englishMonth = $date->format('F');
+                                $year = $date->format('Y');
+                                $monthIndo = convertEnglishMonthToIndonesian($englishMonth);
+                                return [$eval->id => $monthIndo . ' ' . $year];
+                            } catch (\Exception $e) {
+                                Log::error('Format period tidak valid: ' . $eval->period);
+                                return [$eval->id => $eval->period];
+                            }
+                        });
+                    })
                     ->required()
                     ->rule(function (callable $get) {
                         return Rule::unique('salaries', 'evaluation_id')
@@ -234,7 +248,17 @@ class SalaryResource extends Resource
                 Tables\Columns\TextColumn::make('evaluation.period')
                     ->label('Periode Evaluasi')
                     ->sortable()
-                    ->searchable(),
+                    ->searchable()
+                    ->formatStateUsing(function ($state) {
+                        try {
+                            $date = \Carbon\Carbon::createFromFormat('Y-m', $state);
+                            $englishMonth = $date->format('F');
+                            $year = $date->format('Y');
+                            return convertEnglishMonthToIndonesian($englishMonth) . ' ' . $year;
+                        } catch (\Exception $e) {
+                            return $state; // fallback jika format salah
+                        }
+                    }),
 
                 Tables\Columns\TextColumn::make('base_salary')
                     ->label('Gaji Dasar')
