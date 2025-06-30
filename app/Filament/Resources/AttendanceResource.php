@@ -74,36 +74,63 @@ class AttendanceResource extends Resource
                     ->disabled(fn() => !$isAdmin)
                     ->hidden(fn() => !$isAdmin && !request()->routeIs('filament.admin.resources.attendances.create'))
                     ->searchable()
-                    ->preload(),
+                    ->preload()
+                    ->live(), // Tambahkan live() untuk reactive validation
 
                 DatePicker::make('date')
                     ->label('Tanggal')
                     ->required()
-                    ->default(now()),
+                    ->default(now())
+                    ->live() // Tambahkan live() untuk reactive validation
+                    ->rules([
+                        function (callable $get) {
+                            return function (string $attribute, $value, \Closure $fail) use ($get) {
+                                $employeeId = $get('employee_id');
+                                $recordId = $get('id'); // Untuk mendapatkan ID record yang sedang diedit
+                                
+                                if (!$employeeId || !$value) {
+                                    return;
+                                }
+
+                                $query = Attendance::where('employee_id', $employeeId)
+                                    ->whereDate('date', $value);
+
+                                // Jika sedang edit, exclude record yang sedang diedit
+                                if ($recordId) {
+                                    $query->where('id', '!=', $recordId);
+                                }
+
+                                if ($query->exists()) {
+                                    $employee = \App\Models\Employee::find($employeeId);
+                                    $employeeName = $employee ? $employee->name : 'Karyawan ini';
+                                    $fail("{$employeeName} sudah memiliki data absensi pada tanggal " . \Carbon\Carbon::parse($value)->format('d/m/Y') . ". Silahkan pilih tanggal lain atau edit data yang sudah ada.");
+                                }
+                            };
+                        }
+                    ]),
 
                 DateTimePicker::make('check_in')
                     ->label('Check In Time')
-                    ->nullable(),
-                    // ->helperText('Late minutes will be calculated automatically based on 08:00 base time'),
+                    ->nullable()
+                    ->helperText('Waktu masuk kerja'),
 
                 DateTimePicker::make('check_out')
                     ->label('Check Out Time')
                     ->nullable()
-                    ->after('check_in'),
+                    ->after('check_in')
+                    ->helperText('Waktu pulang kerja'),
 
                 TextInput::make('early_minutes')
                     ->label('Early Minutes')
                     ->numeric()
-                    ->default(0),
-                    // ->readonly(), // Make it readonly so users can see the calculated value
-                    // ->helperText('Automatically calculated based on check-in time'),
+                    ->default(0)
+                    ->helperText('Menit datang lebih awal dari jadwal'),
 
                 TextInput::make('late_minutes')
                     ->label('Late Minutes')
                     ->numeric()
-                    ->default(0),
-                    // ->readonly() // Make it readonly so users can see the calculated value
-                    // ->helperText('Automatically calculated when check-in > 08:00'),
+                    ->default(0)
+                    ->helperText('Menit terlambat dari jadwal'),
             ]);
     }
 
@@ -120,7 +147,7 @@ class AttendanceResource extends Resource
                     ->sortable(),
                 TextColumn::make('date')
                     ->label('Tanggal')
-                    ->date()
+                    ->date('d/m/Y')
                     ->sortable(),
                 TextColumn::make('check_in')
                     ->label('Check In')
@@ -150,8 +177,10 @@ class AttendanceResource extends Resource
                     ->visible(fn() => $isAdmin),
                 Tables\Filters\Filter::make('date')
                     ->form([
-                        DatePicker::make('from'),
-                        DatePicker::make('until'),
+                        DatePicker::make('from')
+                            ->label('Dari Tanggal'),
+                        DatePicker::make('until')
+                            ->label('Sampai Tanggal'),
                     ])
                     ->query(function (Builder $query, array $data): Builder {
                         return $query
@@ -167,7 +196,8 @@ class AttendanceResource extends Resource
                 Tables\Actions\BulkActionGroup::make([
                     Tables\Actions\DeleteBulkAction::make(),
                 ]),
-            ]);
+            ])
+            ->defaultSort('date', 'desc'); // Urutkan berdasarkan tanggal terbaru
     }
 
     public static function getRelations(): array

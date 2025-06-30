@@ -29,20 +29,18 @@ class SalaryResource extends Resource
 {
     protected static ?string $model = Salary::class;
 
-    protected static ?string $navigationIcon = 'heroicon-o-currency-dollar'; // Ikon
+    protected static ?string $navigationIcon = 'heroicon-o-currency-dollar';
     protected static ?string $modelLabel = 'Gaji';
     protected static ?string $pluralModelLabel = 'Data Gaji';
     protected static ?string $navigationLabel = 'Gaji';
     protected static ?string $slug = 'gaji';
 
-
     protected static function isCurrentUserAdmin(): bool
     {
         $user = Filament::auth()->user();
-        return $user && $user->hasRole('super_admin'); // Sesuaikan peran admin
+        return $user && $user->hasRole('super_admin');
     }
 
-    // isCurrentUserHeadOfDivision tidak terlalu relevan untuk Salary (biasanya admin/HR yang atur gaji)
     protected static function isCurrentUserHeadOfDivision(): bool
     {
         $user = Filament::auth()->user();
@@ -52,35 +50,28 @@ class SalaryResource extends Resource
         return Division::where('head_id', $user->employee->id)->exists();
     }
 
-    // getCurrentUserDivisionId juga tidak terlalu relevan untuk Salary
     protected static function getCurrentUserDivisionId(): ?int
     {
         $user = Filament::auth()->user();
         return $user->employee?->division?->id;
     }
 
-    // --- Query Scoping ---
     public static function getEloquentQuery(): Builder
     {
         $currentUser = Filament::auth()->user();
 
-        // Jika user tidak login, jangan tampilkan apa-apa
         if (!$currentUser) {
             return parent::getEloquentQuery()->whereRaw('1 = 0')->withoutGlobalScopes([
                 SoftDeletingScope::class,
             ]);
         }
 
-        // Jika user adalah Admin
         if (static::isCurrentUserAdmin()) {
             return parent::getEloquentQuery()->withoutGlobalScopes([
                 SoftDeletingScope::class,
             ]);
         }
 
-        // --- Logika untuk user biasa (karyawan) ---
-        // User biasa hanya bisa melihat gajinya sendiri.
-        // Kita perlu employee_id dari user yang login.
         $employeeId = null;
         if ($currentUser->employee) {
             $employeeId = $currentUser->employee->id;
@@ -88,34 +79,30 @@ class SalaryResource extends Resource
 
         if ($employeeId) {
             return parent::getEloquentQuery()
-                ->where('employee_id', $employeeId) // Filter berdasarkan employee_id karyawan itu sendiri
+                ->where('employee_id', $employeeId)
                 ->withoutGlobalScopes([
                     SoftDeletingScope::class,
                 ]);
         }
 
-        // Jika user login, bukan admin, tapi tidak punya data employee
         return parent::getEloquentQuery()->whereRaw('1 = 0')->withoutGlobalScopes([
             SoftDeletingScope::class,
         ]);
     }
 
-    // --- canCreate() ---
     public static function canCreate(): bool
     {
-        // Hanya Admin yang bisa membuat record gaji
         return static::isCurrentUserAdmin();
     }
 
     public static function calculateLeaveDeduction($employeeId, $period)
     {
-        $start = Carbon::parse($period)->startOfMonth(); // 2025-06-01
-        $end = Carbon::parse($period)->endOfMonth(); // 2025-06-30
+        $start = Carbon::parse($period)->startOfMonth();
+        $end = Carbon::parse($period)->endOfMonth();
 
-        // Cari cuti approved dan unpaid yang overlap dengan periode
         $leaves = Leave::where('employee_id', $employeeId)
             ->where('status', 'approved')
-            ->where('leave_type', 'unpaid') // hanya cuti tanpa bayar yang kena potongan
+            ->where('leave_type', 'unpaid')
             ->where(function ($query) use ($start, $end) {
                 $query->whereBetween('start_date', [$start, $end])
                     ->orWhereBetween('end_date', [$start, $end])
@@ -132,7 +119,6 @@ class SalaryResource extends Resource
             $leaveStart = Carbon::parse($leave->start_date);
             $leaveEnd = Carbon::parse($leave->end_date);
 
-            // Batasi tanggal cuti supaya masuk periode evaluasi
             if ($leaveStart < $start) {
                 $leaveStart = $start;
             }
@@ -140,16 +126,12 @@ class SalaryResource extends Resource
                 $leaveEnd = $end;
             }
 
-            $totalLeaveDays += $leaveEnd->diffInDays($leaveStart) + 1; // +1 supaya hari awal dihitung
+            $totalLeaveDays += $leaveEnd->diffInDays($leaveStart) + 1;
         }
 
-        // Ambil gaji pokok karyawan
         $employee = Employee::find($employeeId);
         $baseSalary = $employee?->base_salary ?? 0;
-
-        $workDays = 22; // total hari kerja per bulan, bisa disesuaikan
-
-        // Hitung potongan cuti tanpa bayar per hari
+        $workDays = 22;
         $deduction = ($baseSalary / $workDays) * $totalLeaveDays;
 
         return round($deduction, 2);
@@ -181,25 +163,35 @@ class SalaryResource extends Resource
                         });
                     })
                     ->required()
-                    ->rule(function (callable $get) {
-                        return Rule::unique('salaries', 'evaluation_id')
-                            ->where(function ($query) use ($get) {
-                                return $query->where('employee_id', $get('employee_id'));
-                            });
-                    }),
+                    ->rules([
+                        function (callable $get) {
+                            return function (string $attribute, $value, \Closure $fail) use ($get) {
+                                $employeeId = $get('employee_id');
+                                $recordId = $get('id'); // Untuk mendapatkan ID record yang sedang diedit
+                                
+                                if (!$employeeId || !$value) {
+                                    return;
+                                }
+
+                                $query = Salary::where('employee_id', $employeeId)
+                                    ->where('evaluation_id', $value);
+
+                                // Jika sedang edit, exclude record yang sedang diedit
+                                if ($recordId) {
+                                    $query->where('id', '!=', $recordId);
+                                }
+
+                                if ($query->exists()) {
+                                    $fail('Periode Evaluasi untuk karyawan ini sudah ada.');
+                                }
+                            };
+                        }
+                    ]),
 
                 Forms\Components\TextInput::make('base_salary')
                     ->numeric()
                     ->required()
                     ->default(fn($get) => Employee::find($get('employee_id'))?->base_salary ?? null),
-
-                // Forms\Components\TextInput::make('potongan')
-                //     ->label('Potongan')
-                //     ->numeric()
-                //     ->disabled()
-                //     ->default(0)
-                //     ->visible(),
-
 
                 Forms\Components\TextInput::make('final_salary')
                     ->numeric()
@@ -208,7 +200,7 @@ class SalaryResource extends Resource
                         $evaluationId = $get('evaluation_id');
 
                         if (! $employeeId || ! $evaluationId) {
-                            return null; // Jangan isi kalau belum lengkap
+                            return null;
                         }
 
                         $employee = Employee::find($employeeId);
@@ -219,7 +211,7 @@ class SalaryResource extends Resource
                             ->value('score');
 
                         if ($performanceScore === null) {
-                            return $baseSalary; // <- fallback aman
+                            return $baseSalary;
                         }
 
                         $bonus = $performanceScore * 0.1 * $baseSalary;
@@ -229,9 +221,6 @@ class SalaryResource extends Resource
                     ->dehydrated(true),
             ]);
     }
-
-
-
 
     public static function table(Table $table): Table
     {
@@ -256,7 +245,7 @@ class SalaryResource extends Resource
                             $year = $date->format('Y');
                             return convertEnglishMonthToIndonesian($englishMonth) . ' ' . $year;
                         } catch (\Exception $e) {
-                            return $state; // fallback jika format salah
+                            return $state;
                         }
                     }),
 
@@ -270,8 +259,7 @@ class SalaryResource extends Resource
 
                 Tables\Columns\TextColumn::make('potongan')
                     ->label('Potongan')
-                    ->money('idr'), // sesuaikan format mata uang
-
+                    ->money('idr'),
 
                 Tables\Columns\TextColumn::make('final_salary')
                     ->label('Gaji Akhir')
@@ -284,11 +272,11 @@ class SalaryResource extends Resource
             ])
             ->actions([
                 Tables\Actions\ViewAction::make()
-                    ->visible(fn() => !$isAdmin), // User biasa hanya bisa view
+                    ->visible(fn() => !$isAdmin),
                 Tables\Actions\EditAction::make()
-                    ->visible(fn() => $isAdmin), // Hanya Admin yang bisa edit
+                    ->visible(fn() => $isAdmin),
                 Tables\Actions\DeleteAction::make()
-                    ->visible(fn() => $isAdmin), // Hanya Admin yang bisa delete
+                    ->visible(fn() => $isAdmin),
             ])
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([

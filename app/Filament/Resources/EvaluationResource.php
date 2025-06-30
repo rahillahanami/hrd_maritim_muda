@@ -55,7 +55,30 @@ class EvaluationResource extends Resource
                     '11' => 'November',
                     '12' => 'Desember',
                 ])
-                ->required(),
+                ->required()
+                ->rules([
+                    function (Forms\Get $get, ?string $state, $record) {
+                        return function (string $attribute, $value, \Closure $fail) use ($get, $record) {
+                            $month = $value;
+                            $year = $get('year');
+                            
+                            if ($month && $year) {
+                                $period = "$year-$month";
+                                
+                                $query = Evaluation::where('period', $period);
+                                
+                                // Jika ini adalah edit (ada record), exclude record saat ini
+                                if ($record) {
+                                    $query->where('id', '!=', $record->id);
+                                }
+                                
+                                if ($query->exists()) {
+                                    $fail('Periode evaluasi ini sudah ada.');
+                                }
+                            }
+                        };
+                    }
+                ]),
 
             Forms\Components\Select::make('year')
                 ->label('Tahun')
@@ -64,20 +87,35 @@ class EvaluationResource extends Resource
                     range(date('Y'), date('Y') + 5)
                 ))
                 ->required()
-                ->rule(function (callable $get) {
-                    $month = $get('month');
-                    $year = $get('year');
-                    $period = $year && $month ? "$year-$month" : null;
-
-                    return Rule::unique('evaluations', 'period')->where(fn($q) => $q->where('period', $period));
-                }),
+                ->rules([
+                    function (Forms\Get $get, ?string $state, $record) {
+                        return function (string $attribute, $value, \Closure $fail) use ($get, $record) {
+                            $year = $value;
+                            $month = $get('month');
+                            
+                            if ($month && $year) {
+                                $period = "$year-$month";
+                                
+                                $query = Evaluation::where('period', $period);
+                                
+                                // Jika ini adalah edit (ada record), exclude record saat ini
+                                if ($record) {
+                                    $query->where('id', '!=', $record->id);
+                                }
+                                
+                                if ($query->exists()) {
+                                    $fail('Periode evaluasi ini sudah ada.');
+                                }
+                            }
+                        };
+                    }
+                ]),
 
             Forms\Components\Placeholder::make('')
                 ->content('')
                 ->extraAttributes(['class' => 'block h-2']),
         ]);
     }
-
 
     public static function table(Table $table): Table
     {
