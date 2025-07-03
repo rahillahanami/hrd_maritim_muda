@@ -164,7 +164,7 @@
                                         @php
                                             $normalized = $result['normalized_scores'][$criterion->id] ?? 0;
                                             $weight = $criterion->weight;
-                                            $wpComponent = $normalized > 0 ? pow($normalized, ($weight / 100)) : 0; // Perhitungan dengan bobot desimal
+                                            $wpComponent = $normalized > 0 ? pow($normalized, ($weight)) : 0; // Perhitungan dengan bobot desimal
                                         @endphp
                                         <td class="px-3 py-2 border border-gray-300 dark:border-gray-600 text-center text-gray-800 dark:text-gray-200">
                                             {{ round($wpComponent, 4) }}<br>
