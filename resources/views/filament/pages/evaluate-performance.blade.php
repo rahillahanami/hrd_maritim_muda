@@ -94,13 +94,13 @@
             </div>
 
             <div class="mb-6">
-                <h3 class="text-md font-semibold mb-2 text-gray-800 dark:text-gray-200">3. Perhitungan SAW (Simple Additive Weighting)</h3> {{-- <<< MODIFIKASI INI --}}
-                <div class="text-xs text-gray-600 mb-2 dark:text-gray-400"> {{-- <<< MODIFIKASI INI --}}
+                <h3 class="text-md font-semibold mb-2 text-gray-800 dark:text-gray-200">3. Perhitungan SAW (Simple Additive Weighting)</h3> 
+                <div class="text-xs text-gray-600 mb-2 dark:text-gray-400">
                     Formula: SAW = Σ (w<sub>j</sub> × r<sub>ij</sub>)
                 </div>
                 <div class="overflow-x-auto">
-                    <table class="w-full text-sm text-left border border-gray-300 dark:border-gray-600"> {{-- <<< MODIFIKASI INI --}}
-                        <thead class="bg-gray-100 dark:bg-gray-800"> {{-- <<< MODIFIKASI INI --}}
+                    <table class="w-full text-sm text-left border border-gray-300 dark:border-gray-600"> 
+                        <thead class="bg-gray-100 dark:bg-gray-800"> 
                             <tr>
                                 <th class="px-3 py-2 border border-gray-300 dark:border-gray-600 text-gray-800 dark:text-gray-200">Karyawan</th>
                                 @foreach($criteria as $criterion)
@@ -114,17 +114,17 @@
                         </thead>
                         <tbody>
                             @foreach($results as $result)
-                                <tr class="border-t border-gray-300 dark:border-gray-700"> {{-- <<< MODIFIKASI INI --}}
+                                <tr class="border-t border-gray-300 dark:border-gray-700"> 
                                     <td class="px-3 py-2 border border-gray-300 dark:border-gray-600 font-medium text-gray-800 dark:text-gray-200">{{ $result['name'] }}</td>
                                     @foreach($criteria as $criterion)
                                         @php
                                             $normalized = $result['normalized_scores'][$criterion->id] ?? 0;
                                             $weight = $criterion->weight; // Bobot utuh
-                                            $sawComponent = ($weight / 100) * $normalized; // Perhitungan dengan bobot desimal
+                                            $sawComponent = ($weight ) * $normalized; // Perhitungan dengan bobot desimal
                                         @endphp
                                         <td class="px-3 py-2 border border-gray-300 dark:border-gray-600 text-center text-gray-800 dark:text-gray-200">
                                             {{ round($sawComponent, 4) }}<br>
-                                            <small class="text-gray-500 dark:text-gray-400">({{ $weight / 100 }} × {{ round($normalized, 4) }})</small>
+                                            <small class="text-gray-500 dark:text-gray-400">({{ $weight }} × {{ round($normalized, 4) }})</small>
                                         </td>
                                     @endforeach
                                     <td class="px-3 py-2 border border-gray-300 dark:border-gray-600 text-center bg-blue-50 dark:bg-blue-900 font-semibold text-gray-800 dark:text-gray-200">
@@ -138,7 +138,7 @@
             </div>
 
             <div class="mb-6">
-                <h3 class="text-md font-semibold mb-2 text-gray-800 dark:text-gray-200">4. Perhitungan WPM (Weighted Product Method)</h3> {{-- <<< MODIFIKASI INI --}}
+                <h3 class="text-md font-semibold mb-2 text-gray-800 dark:text-gray-200">4. Perhitungan WPM (Weighted Product Method)</h3> 
                 <div class="text-xs text-gray-600 mb-2 dark:text-gray-400"> {{-- <<< MODIFIKASI INI --}}
                     Formula: WPM = ∏ (r<sub>ij</sub>)<sup>w<sub>j</sub></sup>
                 </div>
@@ -168,7 +168,7 @@
                                         @endphp
                                         <td class="px-3 py-2 border border-gray-300 dark:border-gray-600 text-center text-gray-800 dark:text-gray-200">
                                             {{ round($wpComponent, 4) }}<br>
-                                            <small class="text-gray-500 dark:text-gray-400">({{ round($normalized, 4) }})<sup>{{ $weight / 100 }}</sup></small>
+                                            <small class="text-gray-500 dark:text-gray-400">({{ round($normalized, 4) }})<sup>{{ $weight  }}</sup></small>
                                         </td>
                                     @endforeach
                                     <td class="px-3 py-2 border border-gray-300 dark:border-gray-600 text-center bg-green-50 dark:bg-green-900 font-semibold text-gray-800 dark:text-gray-200">
