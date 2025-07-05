@@ -395,6 +395,7 @@ class WorkPlanResource extends Resource
         return [
             'index' => Pages\ListWorkPlans::route('/'),
             'create' => Pages\CreateWorkPlan::route('/create'),
+            'view' => Pages\ViewWorkPlan::route('/{record}'),
             'edit' => Pages\EditWorkPlan::route('/{record}/edit'),
         ];
     }

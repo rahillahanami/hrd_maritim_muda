@@ -40,13 +40,13 @@ class DocumentResource extends Resource
     protected static ?string $slug = 'dokumen'; // Slug untuk URL
 
 
-    protected static function isCurrentUserAdmin(): bool
+    public static function isCurrentUserAdmin(): bool
     {
         $user = Filament::auth()->user();
         return $user && $user->hasRole('super_admin'); // Sesuaikan peran admin
     }
 
-    protected static function isCurrentUserHeadOfDivision(): bool
+    public static function isCurrentUserHeadOfDivision(): bool
     {
         $user = Filament::auth()->user();
         if (!$user || !$user->employee) {
@@ -55,7 +55,7 @@ class DocumentResource extends Resource
         return Division::where('head_id', $user->employee->id)->exists();
     }
 
-    protected static function getCurrentUserDivisionId(): ?int
+    public static function getCurrentUserDivisionId(): ?int
     {
         $user = Filament::auth()->user();
         return $user->employee?->division?->id;
@@ -401,6 +401,7 @@ class DocumentResource extends Resource
         return [
             'index' => Pages\ListDocuments::route('/'),
             'create' => Pages\CreateDocument::route('/create'),
+            'view' => Pages\ViewDocument::route('/{record}'), // Tambahkan halaman view
             'edit' => Pages\EditDocument::route('/{record}/edit'),
         ];
     }
